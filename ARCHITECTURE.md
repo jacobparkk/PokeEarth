@@ -1,115 +1,122 @@
-# PokeEarth system architecture
+# PokeEarth architecture — Phase 2
 
-## Technology choice
+## Stack and boundaries
 
-Use React 19 + TypeScript + Vite for a client-rendered explorer. The MVP has no accounts, server data, or server-rendering requirements, so Next.js adds infrastructure without improving this first phase. If those requirements appear, the components and typed region data can move into a Next.js client boundary.
+The atlas and HUD use React 19, TypeScript, and Vite. The region overview is local SVG artwork; the ground-level engine uses Three.js and React Three Fiber 9. A lazy boundary separates the WebGL chunk from the map. Plain CSS controls the responsive interface.
 
-Phase one uses SVG for the illustrated regional overview: deterministic, resolution-independent, accessible, and independent of a WebGL context. CSS handles the responsive layout; requestAnimationFrame drives camera interpolation. No extra state-management or animation dependency is needed.
+Audio uses the browser Web Audio API because this prototype synthesizes its own score and ambience as well as accepting supplied files. A persistent gain bus above the scene owns volume/mute and crossfades; remounting a mesh does not restart audio. Howler is not needed for this implementation.
 
-Phase two will add Three.js, React Three Fiber 9 (the React 19-compatible major), Drei controls/utilities as needed, and Howler.js for decoded music loops and crossfades. Those packages are not installed or imported by this phase. The first-person scene will be lazy-loaded so the atlas stays light. Procedural mesh geometry, seeded foliage, and shader-based grass/water will supply the scene without remote GLB dependencies.
+## File tree
 
-References:
-- https://r3f.docs.pmnd.rs/getting-started/installation
-- https://vite.dev/guide/
+```text
+src/
+  main.tsx
+  App.tsx
+  styles.css
+  data/regions.ts
+  state/explorer.ts
+  state/explorer.test.ts
+  components/
+    RegionMap.tsx
+    MapArtwork.tsx
+    LocationArtwork.tsx
+    SceneLoader.tsx
+    ExplorationHUD.tsx
+  scenes/
+    SceneHost.tsx
+    shared/
+      EnvironmentRig.tsx
+      FirstPersonController.tsx
+      movement.ts
+      movement.test.ts
+    national-park/
+      NationalPark.tsx
+      layout.ts
+      Foliage.tsx
+      Fountain.tsx
+  audio/
+    AudioEngine.ts
+    useLocationAudio.ts
+    synthesis.ts
+    synthesis.test.ts
+scripts/browser-check.mjs
+.github/workflows/validate.yml
+```
 
-## Ownership
-
-| Module | Owns |
-| --- | --- |
-| `data/regions.ts` | Serializable region and location configuration; IDs; coordinates; camera, environment, sound, and asset contracts |
-| `state/explorer.ts` | Explicit exploration phases and stale-event protection |
-| `App.tsx` | Selected destination, search/hover UI, accessible announcements, return navigation |
-| `components/RegionMap.tsx` | Viewbox camera, animation lifecycle, pin activation, pan/zoom |
-| `components/MapArtwork.tsx` | Local schematic Johto terrain, routes, towns, forests, mountains, and water |
-| `components/LocationArtwork.tsx` | Locally rendered location previews |
-| `styles.css` | Responsive interface, focus states, motion preference |
-
-Map pins refer to scene IDs; they never import a scene directly. The `regions` registry currently contains Johto only. Region IDs also cover future regions, while `Partial<Record<RegionId, Region>>` prevents implying that unbuilt regions are selectable.
-
-## Current state transition
+## State transitions
 
 ```mermaid
 stateDiagram-v2
-  [*] --> map
-  map --> focusing: SELECT(locationId, transitionId)
-  focusing --> preview: ARRIVED(matching transitionId)
-  focusing --> returning: Escape
-  preview --> returning: Return or Escape
-  returning --> map: RESTORED(matching transitionId)
+  map --> focusing: select pin
+  focusing --> preview: unbuilt location
+  focusing --> loading: National Park
+  loading --> entering: scene ready
+  entering --> exploring: camera arrives
+  loading --> error: load failure or timeout
+  entering --> error: WebGL failure
+  exploring --> error: context lost
+  error --> loading: retry
+  preview --> returning: return
+  loading --> returning: cancel
+  entering --> returning: cancel
+  exploring --> returning: return
+  error --> returning: return
+  returning --> map: map restored
 ```
 
-1. Selecting a pin or list item records its ID and increments a monotonically increasing transition ID.
-2. The map interpolates its camera center and scale toward the pin using smoothstep `t*t*(3-2*t)`. Duration is 1,150 ms, or zero under reduced motion.
-3. The final animation frame emits ARRIVED. Only the matching in-flight transition can complete. This prevents stale callbacks after cancellation or a later selection.
-4. The location preview appears, announces the destination, and focuses the return button. It explicitly identifies first-person mode as phase two.
-5. Return or Escape starts a new transition to the configured regional overview. Completion restores keyboard focus to the destination list item when present.
+Every navigation attempt has a monotonically increasing transition ID. Late load/animation callbacks from cancelled or retried attempts are ignored. The reducer only accepts scene readiness during loading and only enables movement after camera arrival.
 
-The map stays mounted throughout, preserving the regional artwork and avoiding reloads. The current return restores the region's home camera rather than the user's last pan position.
+The map first focuses its pin over 1.15 seconds. The lazy scene then reveals and moves its local camera from overview through arrival to the player pose over 3.6 seconds. A screen-space fade bridges the unrelated map and world coordinate systems. Reduced motion makes both camera transitions immediate. On return, the scene unmounts, controls release, audio fades out, and the existing atlas animates home.
 
-## Planned first-person handoff — not implemented in this delivery
+Map/sidebar controls become inert while the scene is visible. The scene canvas receives keyboard focus when exploration starts. The return button receives focus after errors; return to the atlas restores the destination list focus when that item is present. The background map remains mounted.
 
-Extend the reducer with loading, entering, exploring, and recoverable error states. A scene registry maps each `scene.id` to a lazy-loaded scene module. National Park will be implemented first; the other locations must keep their preview-only status until they have scenes.
+## Data and coordinates
 
-- Selection starts the map focus animation and preloads the chosen scene.
-- Entering waits for both the map animation and the scene-ready signal.
-- Mount the scene with its local overview camera, then animate through `camera.arrival` to `camera.player`. Map units are not interpolated directly into scene metres. A brief screen-space dissolve joins the independent coordinate systems.
-- Keep controls disabled during the camera motion. At the player pose, enable WASD and drag-to-look. Pointer lock is optional and requested only from a deliberate user gesture.
-- Escape or Return releases pointer lock, disables input, fades out audio, restores the regional camera, and returns keyboard focus.
-- Scene-load failures display a retry/return control. The map remains usable.
+`Region` owns the 1,200 × 860 schematic map, routes, towns, and location records. `Location` owns camera presets, lighting/weather, audio layers, scene readiness, seed, bounds, and procedural features.
 
-Planned new modules (these are architectural boundaries, not empty source files):
+- Atlas origin: top-left; +X east, +Y south. These are design units, not latitude/longitude.
+- Scene units: metres; +Y up. Yaw 0 faces -Z; angles use radians.
+- Player position already includes eye height. Do not add eye height again.
+- Feature sizes use full extents. Path-ring X size is its outer diameter.
+- National Park player spawn: `[0, 1.7, 26]`; playable horizontal limits: -38 to +38 metres.
+- The park has a central fountain, inner circular walk, cross-paths, outer walk, two northern grass patches, four benches, entry gateposts, a sign, and perimeter trees.
+- `layout.ts` generates the same tree layout for rendering and collisions from the location seed. Foliage is generated once, not randomized every frame.
 
-| Module | Responsibility |
-| --- | --- |
-| `scenes/SceneHost.tsx` | Lazy loading, errors, Canvas lifecycle, ready signals |
-| `scenes/registry.ts` | Scene-ID-to-module mapping |
-| `scenes/national-park/NationalPark.tsx` | Fountain, circular paths, grass, tree boundary |
-| `scenes/shared/EnvironmentRig.tsx` | Sky, lights, fog, weather, exposure |
-| `scenes/shared/FirstPersonController.tsx` | Movement, mouse/drag look, collision and bounds |
-| `scenes/shared/Foliage.tsx` | Seeded placement and instanced rendering |
-| `audio/AudioProvider.tsx` | Long-lived audio bus, mute, volume, cleanup |
-| `audio/useLocationAudio.ts` | Location-change crossfades and ambient layers |
-| `components/ExplorationHUD.tsx` | Return, volume/mute, controls help |
+The atlas and park are stylized interpretations of the requested landmarks. Exact tile layouts require choosing an original game version and calibrating against its location map.
 
-## Data schema
+## Movement and rendering
 
-`Region` holds the atlas design dimensions, its home camera, locations, contextual towns, and schematic routes. `Location` holds identity, prose, map pin placement, preview colors, landmarks, local scene cameras, environment, audio, procedural geometry hints, bounds, and deterministic seed.
+The camera uses yaw/pitch in YXZ order. Pitch is clamped to prevent inversion. Forward and strafe vectors are normalized to avoid faster diagonal movement. Delta time is capped after inactive tabs. Collision movement uses short substeps to prevent tunnelling and separate axes to permit sliding. The fountain/trees use circles; benches, sign, and gateposts use boxes. Horizontal limits contain the player.
 
-| Location | Pin (x, y) | Focus scale | Player spawn (x, y, z) | Lighting | Music hook |
-| --- | --- | --- | --- | --- | --- |
-| National Park | 548, 388 | 2.4 | 0, 1.7, 26 | Golden hour | national-park-theme |
-| Ecruteak City | 588, 278 | 2.4 | 0, 1.7, 28 | Sunset / haze | ecruteak-theme |
-| New Bark Town | 930, 590 | 2.4 | 0, 1.7, 20 | Morning | new-bark-theme |
+Controls clear held keys on blur and visibility change; all listeners are removed on scene unmount. Pointer lock requires an explicit click, is optional, and is released on return. Touch controls use pointer capture and reset on release/cancel/lost capture.
 
-Coordinates:
+Trees use two instanced meshes (trunks and crowns). Tall grass uses one instanced mesh with vertex-shader wind. Water uses a radial ripple shader and a small animated particle system. Geometry is local, shadows are capped at 2,048 pixels, and device pixel ratio is capped at 1.5. Canvas owns declarative geometry/material disposal.
 
-- Atlas: 1,200 × 860 design units; origin top-left, x east/right, y south/down. Values are schematic placements, not geographic latitude/longitude.
-- Scene: metres; right-handed; Y up; yaw zero faces -Z; rotations in radians.
-- `camera.player.position` is the eye position, already including `eyeHeight` (do not add it twice).
-- `bounds` describe the playable volume. A controller must constrain horizontal movement; the scene must also supply collider geometry for objects within it.
-- Path-ring `size` is its outer bounding diameter on X/Z, not its radius. Feature sizes are full extents.
-- Seeds must drive a deterministic generator; never call unseeded random placement on each React render.
-- Fog near/far and camera clipping distances are in metres. Wind direction is a vector to normalize in the shader; speed is a scene animation multiplier. Cloud cover, precipitation, and gust strength use 0–1 values.
-- Music and ambient volume use 0–1. Crossfade duration uses milliseconds.
+The configured clear golden-hour environment consumes sky horizon, sun, hemisphere light, fog, exposure, and wind speed. Rain/cloud weather is data for future destinations; precipitation/cloud rendering is not implemented. No GLB loader is present because the MVP uses procedural geometry only.
 
-## Audio integration contract
+## Audio
 
-The map initializes no audio. All `src` fields are `null`, expressing deliberate absence without broken requests. After supplying local tracks, update the data to base-aware paths. The music layer also names its intended theme, so tracks are decoupled from location names.
+The audio context is created/resumed from the user's location-selection gesture. Entry starts the location layers; the location bus fades up over its configured crossfade duration. A new destination's bus can fade in while the old one fades out. Returning fades current sessions out over 700 ms. The global master bus applies mute/volume independently of location fades.
 
-The phase-two manager should create the audio context from a user gesture, keep one persistent audio bus above the scene switch, load the next track before fading, and fade old and new music concurrently. Track-load failure leaves exploration usable and shows an audio-unavailable state. A null music source means silence or procedural ambience, never a speculative fetch. Global mute and volume apply during transitions and must not be overwritten by a fade. Disconnect and unload retired sources after fades finish.
+- Music: original 32-second celesta/pad composition, generated into a PCM buffer.
+- Wind: filtered seeded noise.
+- Fountain: broad noise and a low-frequency wash.
+- All loops fade at their seams and are checked for finite, non-clipping output.
+- Music and ambient `src` fields remain null by default; explicit `fallback` values select procedural audio.
+- Set `src` to a supplied local audio path to override a fallback. Paths are resolved as configured; use `import.meta.env.BASE_URL` for subfolder deployments.
+- Failed audio files do not block exploration. Successful layers continue and the HUD reports partial unavailability.
+- Abort signals and generation tokens discard stale loads. Old sources stop and disconnect after fades. Unmount closes the context.
 
-## Asset strategy
+The default score is not the official National Park theme. The soundscape is non-positional in this MVP; distance-based fountain attenuation is a future refinement.
 
-`scene.asset` is a discriminated union: `{ mode: 'procedural', modelUrl: null }` or `{ mode: 'gltf', modelUrl: string }`. Procedural features remain the fallback; GLB assets will only be loaded when explicitly configured. Put future files in `public/assets/models` and audio in `public/assets/audio`. Resolve public paths against Vite's base path for subfolder hosting.
+## Adding assets and locations
 
-The future asset loader should retain separate collision geometry and spawn coordinates, use a loading/error boundary, dispose geometries/materials on unmount, and avoid remote dependency URLs. National Park's repeated tree and grass geometry should use instancing; cap device pixel ratio and shadow-map resolution for mobile. Asset failures must not strand a user in a black screen.
+Custom files belong in `public/assets/models` and `public/assets/audio`. `scene.asset` distinguishes procedural generation from a future GLB URL. To integrate a GLB, add a loading/error-bounded model renderer in SceneHost, retain procedural fallback geometry, and separately define collisions and a clear spawn. Merely changing `modelUrl` does not install a loader.
 
-## Adding another region
+To add another playable destination, implement its scene/layout renderer, dispatch by `location.scene.id` in SceneHost, then set that location's availability to `ready`. National Park is the only ready scene in this branch. To add another region, extend the artwork renderer, register its `Region` data, enable its selector option, and reset active transitions/cameras on region change.
 
-1. Add its complete `Region` data and register it in `regions`.
-2. Add its own map artwork renderer and extend the map artwork discriminator/registry. Route lines, pins, labels, and views remain data-driven.
-3. Populate scene IDs and the phase-two scene registry for finished locations.
-4. Enable it in the region selector only after its atlas is available.
-5. Cancel active transitions on region switches and reset the map to that region's home camera.
+## Verification
 
-The single-region app currently renders Johto explicitly. The region selector lists other planned regions as disabled, rather than presenting nonfunctional controls.
+`npm test` runs Node's built-in test runner on navigation lifecycle, collision math, procedural determinism, region data, and audio signal safety. The browser check loads the production bundle in Chromium and exercises desktop entry/movement/mute/return, preview-only locations, mid-flight cancellation, and mobile/reduced-motion entry and movement. GitHub Actions runs these checks and uploads the built site and review screenshots.
+
+The local workspace cannot reach the npm registry (HTTP 403). Unit tests can run locally without dependencies; TypeScript, build, and browser results must come from the branch's GitHub Actions run. Check that run's actual result before treating the branch as validated.

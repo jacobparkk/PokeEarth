@@ -1,19 +1,32 @@
-# PokeEarth — Johto atlas / phase 1
+# PokeEarth
 
 PokeEarth is an interactive Pokémon world explorer with regional maps, cinematic transitions, and procedural 3D locations—starting with Johto’s National Park.
 
-A React + TypeScript regional explorer with a fully local, illustrated Johto map. Select National Park, Ecruteak City, or New Bark Town to animate into a location preview. This delivery intentionally stops before the first-person engine, as requested.
+## Phase 2: National Park
 
-## Run
+Select National Park on the Johto atlas to descend into a golden-hour 3D park. Walk its circular paths, explore tall grass, and relax by an animated central fountain. Every mesh, grass blade, illustration, and default sound is generated locally; no external models or soundtrack downloads are required.
 
-Use Node.js 22.18+ (Node 24 recommended), then run from this folder:
+- React 19, TypeScript, Vite, Three.js, and React Three Fiber 9.
+- Lazy-loaded scene, smooth camera descent, responsive HUD, and return-to-map transitions.
+- WASD/arrow-key movement, drag-to-look, optional pointer lock, and mobile direction controls.
+- Fountain, bench, gate, tree, and boundary collision handling.
+- Seeded instanced trees and grass, animated grass shader, rippling water, fountain particles, shadows, and fog.
+- Original procedural music plus wind/water ambience, crossfades, volume, and mute. This is **not the official National Park soundtrack**; add a supplied track using the audio configuration.
+- Reduced-motion support, scene-error recovery, WebGL context-loss handling, and input cleanup.
+- Ecruteak City and New Bark Town retain their illustrated map previews; their first-person scenes are not implemented.
+
+The atlas and park are stylized interpretations, not tile-for-tile reconstructions of a specific game version.
+
+## Run locally
+
+Use Node.js 22.18+ (Node 24 recommended):
 
 ```sh
 npm install
 npm run dev
 ```
 
-Open the localhost URL Vite prints. Production commands:
+Open Vite’s printed localhost URL. Do not open `index.html` directly.
 
 ```sh
 npm test
@@ -21,73 +34,44 @@ npm run build
 npm run preview
 ```
 
-`npm test` uses Node's built-in TypeScript stripping and needs no installed packages. The dev server and production build require `npm install`. No API keys, external images, external fonts, models, or audio downloads are needed. `index.html` is a Vite entry point; run the dev server rather than double-clicking that file.
+For automated browser checks:
 
-## Included behavior
-
-- Responsive sidebar, searchable location list, and illustrated preview cards.
-- Three keyboard-accessible pins. Hover/focus updates the illustrated sidebar preview.
-- Click a pin or location card to fly to that location over 1.15 seconds.
-- Drag to pan, plus/minus buttons to zoom, and a reset-view button.
-- Return button and Escape restore the regional overview.
-- Reduced-motion preference skips camera animation.
-- Stale transition IDs are rejected; animation frames are cancelled on state changes and unmount.
-- Status announcements and focus restoration support keyboard navigation.
-- Explicit phase-two notice in every location preview. No button pretends a 3D scene is already available.
-
-## Files
-
-```text
-pokeearth/
-  index.html
-  package.json
-  tsconfig.json
-  vite.config.ts
-  README.md
-  ARCHITECTURE.md
-  public/assets/
-    audio/README.md
-    models/README.md
-  src/
-    main.tsx
-    App.tsx
-    styles.css
-    data/regions.ts
-    state/explorer.ts
-    state/explorer.test.ts
-    components/
-      RegionMap.tsx
-      MapArtwork.tsx
-      LocationArtwork.tsx
+```sh
+npx playwright install chromium
+npm run test:e2e
 ```
 
-Read `ARCHITECTURE.md` for the state flow, scene architecture, coordinate systems, and expansion plan. `src/data/regions.ts` is the complete typed data structure; `src/components/RegionMap.tsx` is the interactive map implementation.
+The browser script starts the production preview server, tests desktop and mobile behavior, and writes screenshots to `browser-results/`. GitHub Actions runs unit tests, type checking, the production build, and browser checks on feature-branch pushes. Its `pokeearth-review` artifact contains the built site, screenshots, and the generated dependency lockfile.
 
-## Scope and fidelity
+## Controls
 
-The atlas is a schematic illustration of Johto's relative geography, not a pixel-accurate recreation of an official map. Map units are unrelated to scene metres. Scene features and dimensions are proposed initial layouts; the National Park fountain, circular paths, grass areas, and trees are configured for the requested next phase. Exact layout fidelity requires selecting a game version and comparing its location map during scene construction. Camera, lighting, and weather values are configuration only until phase two consumes them.
+| Action | Control |
+| --- | --- |
+| Walk | WASD or arrow keys |
+| Look | Hold and drag on the scene |
+| Free mouse look | Capture mouse button |
+| Touch movement | Hold a direction button; drag with another finger to look |
+| Return | Return to region map or Escape |
+| Sound | Speaker button and volume slider |
 
-All audio sources are explicitly `null`. They are valid optional hooks, not broken URLs. No music is fetched or played in this phase. The map and cards are original vector illustrations made from SVG shapes.
+Some browsers consume the first Escape to release pointer lock; press Escape again to return. Audio starts only after a user gesture. If autoplay remains blocked, tap the sound control.
 
-## Validation performed
+## Source map
 
-Four automated tests pass on Node 24.22.3:
+- `src/data/regions.ts`: region/location schema, camera/environment presets, procedural features, audio sources.
+- `src/state/explorer.ts`: map, loading, descent, exploration, error, and return states.
+- `src/components/RegionMap.tsx`: interactive SVG atlas and pin transitions.
+- `src/components/SceneLoader.tsx`: lazy scene boundary and retry behavior.
+- `src/components/ExplorationHUD.tsx`: navigation, sound, controls help, and touch buttons.
+- `src/scenes/SceneHost.tsx`: Canvas, lighting, scene readiness, and lifecycle.
+- `src/scenes/national-park/`: geometry, fountain/water, instanced foliage, and collision layout.
+- `src/scenes/shared/`: environment rig, first-person camera, deterministic generation, and collision math.
+- `src/audio/`: original score/noise synthesis, persistent audio bus, and React hook.
 
-1. A stale arrival cannot replace a newer destination.
-2. Cancelling a flight rejects stale arrival and return callbacks.
-3. A completed preview can return and select another destination.
-4. Location IDs, pin coordinates, spawn bounds, eye height, fog distances, music hooks, and volume ranges meet their data contracts.
+Read `ARCHITECTURE.md` for coordinates, transitions, extension points, and limitations. No external backend or API keys are required.
 
-The environment returned HTTP 403 from the npm registry during dependency installation. Therefore the React/TypeScript build and browser behavior have **not** been executed here. No package lock is included because installation did not complete. Run `npm install`, `npm test`, and `npm run build` on your machine before deployment; preserve the generated `package-lock.json` for reproducible subsequent installs.
+## Review workflow
 
-## Manual acceptance checks
+`main` preserves the approved Phase 1 atlas. Phase 2 is on `feature/national-park-phase-2` for review. No pull request has been opened; one will be created after review is requested.
 
-- At desktop and mobile widths, select all three destinations and return.
-- Hover a pin to update the sidebar card; use Tab and Enter/Space to activate it.
-- Pan the map, then immediately click a pin; verify activation still works.
-- Press Escape mid-flight and confirm the map returns cleanly.
-- Search for a location, select it, return, then clear the search.
-- Enable reduced motion in your OS/browser and repeat a transition.
-- Check browser console and network for errors; there should be no model, image, or audio requests.
-
-PokeEarth is an unofficial fan project. Pokémon names identify the destinations; no official game artwork or audio files are bundled.
+PokeEarth is an unofficial fan project. No official game artwork or recorded Pokémon music is bundled.

@@ -1,0 +1,60 @@
+import { chromium } from 'playwright';
+import { spawn } from 'node:child_process';
+import { mkdir } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const server=spawn('node',['node_modules/vite/bin/vite.js','preview','--host','127.0.0.1','--port','4173'],{stdio:'inherit'});
+let browser;
+try {
+  for(let i=0;i<80;i++) { try { if((await fetch('http://127.0.0.1:4173')).ok)break; } catch {} await new Promise(resolve=>setTimeout(resolve,250)); }
+  browser=await chromium.launch({args:['--enable-webgl','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+  await mkdir('browser-results',{recursive:true});
+  const page=await browser.newPage({viewport:{width:1440,height:1000}});
+  const errors=[];
+  page.on('pageerror',error=>errors.push(String(error)));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await page.goto('http://127.0.0.1:4173');
+  await page.getByRole('button',{name:'Preview National Park',exact:true}).click();
+  await page.locator('.scene-layer[data-phase="exploring"]').waitFor({timeout:30000});
+  const canvas=page.locator('.scene-layer canvas');
+  await page.screenshot({path:'browser-results/national-park-desktop.png'});
+  const before=await canvas.getAttribute('data-position');
+  await page.keyboard.down('w'); await page.waitForTimeout(600); await page.keyboard.up('w');
+  const after=await canvas.getAttribute('data-position');
+  assert.ok(Number(after.split(',')[1])<Number(before.split(',')[1])-0.3,'W moves forward');
+  await page.getByRole('button',{name:'Mute audio',exact:true}).click();
+  await page.getByRole('button',{name:'Unmute audio',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Return to region map',exact:true}).click();
+  await page.getByRole('button',{name:'Preview Ecruteak City',exact:true}).waitFor();
+  await page.waitForTimeout(1300);
+  await page.getByRole('button',{name:'Preview Ecruteak City',exact:true}).click();
+  await page.locator('.destination-panel').waitFor();
+  assert.equal(await page.locator('.scene-layer').count(),0,'Unbuilt scenes remain previews');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(1300);
+  await page.screenshot({path:'browser-results/johto-atlas-desktop.png'});
+  // Cancel a map flight; an old callback must not reopen the scene.
+  await page.getByRole('button',{name:'Preview National Park',exact:true}).click();
+  await page.waitForTimeout(150); await page.keyboard.press('Escape'); await page.waitForTimeout(1600);
+  assert.equal(await page.locator('.scene-layer').count(),0);
+  // Touch entry and movement with reduced motion also exercise a second scene/audio lifecycle.
+  const mobile=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+  const phone=await mobile.newPage();
+  phone.on('pageerror',error=>errors.push(String(error)));
+  phone.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await phone.goto('http://127.0.0.1:4173');
+  await phone.getByRole('button',{name:'Preview National Park',exact:true}).click();
+  await phone.locator('.scene-layer[data-phase="exploring"]').waitFor({timeout:30000});
+  const forward=phone.getByRole('button',{name:'Move forward',exact:true});
+  assert.ok(await forward.isVisible());
+  const mobileCanvas=phone.locator('.scene-layer canvas');
+  const initialMobile=await mobileCanvas.getAttribute('data-position');
+  const box=await forward.boundingBox();
+  await phone.mouse.move(box.x+box.width/2,box.y+box.height/2);await phone.mouse.down();await phone.waitForTimeout(500);await phone.mouse.up();
+  const movedMobile=await mobileCanvas.getAttribute('data-position');
+  assert.ok(Number(movedMobile.split(',')[1])<Number(initialMobile.split(',')[1])-0.2,'Touch HUD moves forward');
+  await phone.screenshot({path:'browser-results/national-park-mobile.png'});
+  await phone.getByRole('button',{name:'Return to region map',exact:true}).click();
+  await phone.waitForTimeout(250);
+  assert.equal(await phone.locator('.scene-layer').count(),0);
+  assert.deepEqual(errors,[]);
+  console.log('Browser checks passed: desktop entry, movement, mute, return, preview-only destinations, cancellation, reduced motion, mobile entry and movement.');
+} finally { await browser?.close(); server.kill('SIGTERM'); }

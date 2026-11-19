@@ -749,3 +749,62 @@ kbd {
     scroll-behavior:auto!important
   }
 }
+
+/* Ground-level exploration occupies the viewport beneath the atlas header. */
+.scene-layer { position: fixed; inset: 76px 0 0; background: #d9d5ab; z-index: 20; animation: scene-reveal 700ms ease-out; }
+.scene-layer canvas { touch-action: none; outline-offset: -3px; }
+.scene-top { position: absolute; top: 28px; left: 30px; right: 30px; display: flex; align-items: flex-start; gap: 20px; pointer-events: none; }
+.scene-top > * { pointer-events: auto; }
+.scene-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid #fff8; border-radius: 7px; background: #f6f6e8ed; color: #31503b; padding: 12px 16px; font-size: 11px; box-shadow: 0 4px 20px #263e2815; }
+.scene-button:hover { background: #fffdf1; }
+.scene-location { display: grid; gap: 8px; padding: 17px 22px; background: #f9f7e8ed; border: 1px solid #fff8; border-radius: 9px; margin-left: auto; }
+.scene-location strong { font: 27px Georgia,serif; letter-spacing: -.5px; }
+.scene-location > span:last-child { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #879071; }
+.scene-location .eyebrow { font-size: 8px; }
+.help-button { padding: 12px; }
+.scene-bottom { position: absolute; bottom: 28px; left: 30px; right: 30px; display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; pointer-events: none; }
+.scene-controls-copy { display: grid; gap: 8px; background: #f8f5e6df; border: 1px solid #fff6; border-radius: 9px; padding: 17px 20px; pointer-events: auto; }
+.scene-controls-copy strong { font: 19px Georgia,serif; }
+.scene-controls-copy span { font-size: 10px; color: #718166; }
+.capture-button { display: flex; gap: 6px; align-items: center; width: fit-content; background: transparent; border: 0; padding: 5px 0 0; font-size: 10px; color: #50754f; }
+.scene-controls-copy small { max-width: 280px; font-size: 10px; }
+.sound-controls { display: grid; grid-template-columns: 32px 155px; gap: 9px; padding: 14px; border-radius: 9px; background: #f8f5e6ed; border: 1px solid #fff8; pointer-events: auto; }
+.sound-controls button { background: transparent; border: 0; padding: 0; }
+.sound-controls label { display: grid; gap: 5px; font-size: 10px; }
+.sound-controls input { width: 100%; height: 12px; accent-color: #547450; }
+.sound-controls small { grid-column: 1 / -1; font-size: 8px; color: #879071; max-width: 200px; }
+.crosshair { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; border-radius: 50%; background: #fff9; border: 1px solid #405d4870; pointer-events: none; }
+.scene-arriving { position: absolute; left: 50%; top: 43%; translate: -50% -50%; text-align: center; color: #fffdef; text-shadow: 0 2px 12px #3e482c70; pointer-events: none; width: 90%; }
+.scene-arriving .eyebrow { color: #f8efd8; }
+.scene-arriving h2 { font: 45px Georgia,serif; letter-spacing: -1px; margin: 17px 0; }
+.scene-arriving p { font-size: 12px; }
+.controls-help { position: absolute; top: 98px; left: 30px; max-width: 350px; padding: 22px; background: #f8f7e9f5; border: 1px solid #fff8; border-radius: 9px; box-shadow: 0 10px 60px #203d2820; }
+.controls-help strong { font: 22px Georgia,serif; }
+.controls-help p { font-size: 12px; line-height: 1.8; color: #6b7c60; }
+.scene-loading { position: absolute; top: 60%; width: 100%; text-align: center; color: #516a43; font-size: 12px; }
+.scene-error { position: absolute; top: 50%; left: 50%; translate: -50% -50%; background: #faf9eb; border-radius: 12px; padding: 30px; width: min(450px,90%); text-align: center; }
+.scene-error h2 { font: 30px Georgia,serif; }
+.scene-error p { font-size: 13px; line-height: 1.7; color: #78856c; }
+.scene-error button { margin: 5px; }
+.touch-pad { display: none; position: absolute; bottom: 154px; left: 20px; grid-template-columns: repeat(3,46px); grid-template-rows: repeat(2,46px); gap: 5px; }
+.touch-pad button { display: grid; place-items: center; touch-action: none; user-select: none; border: 1px solid #fff9; border-radius: 9px; background: #f6f6dcd9; color: #3f6244; }
+.touch-pad .up { grid-column: 2; }.touch-pad .left { grid-row: 2; }.touch-pad .down { grid-row: 2; }.touch-pad .right { grid-row: 2; }
+@keyframes scene-reveal { from { opacity: 0; } to { opacity: 1; } }
+@media (pointer: coarse) { .touch-pad { display: grid; } .capture-button { display: none; } }
+@media (max-width: 720px) {
+  .scene-layer { top: 62px; }
+  .scene-top { top: 14px; left: 14px; right: 14px; gap: 9px; }
+  .return-map { font-size: 9px; padding: 12px 10px; }
+  .scene-location { padding: 12px; gap: 5px; }
+  .scene-location strong { font-size: 20px; }
+  .scene-location .eyebrow { display: none; }
+  .help-button { padding: 10px; }
+  .scene-bottom { bottom: 14px; left: 14px; right: 14px; align-items: stretch; gap: 8px; }
+  .scene-controls-copy { padding: 12px; flex: 1; min-width: 0; }
+  .scene-controls-copy strong { font-size: 15px; }
+  .scene-controls-copy span { font-size: 9px; line-height: 1.6; }
+  .sound-controls { grid-template-columns: 22px 93px; padding: 12px; }
+  .sound-controls small { font-size: 7px; max-width: 120px; }
+  .scene-arriving h2 { font-size: 33px; }
+  .controls-help { top: 95px; left: 14px; right: 14px; max-height: calc(100% - 250px); overflow: auto; }
+}

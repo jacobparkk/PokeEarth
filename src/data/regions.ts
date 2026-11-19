@@ -16,8 +16,8 @@ export interface Environment {
 }
 /** Null means no track supplied: never fetch a guessed file path.
  * Set src to a bundled track you may use, such as `${import.meta.env.BASE_URL}assets/audio/park.ogg`.
- * Audio is deliberately not initialized in the phase-one map. */
-export interface AudioLayer { id: string; src: string | null; volume: number; loop: boolean }
+ * Audio unlocks from a user gesture; a procedural fallback is optional. */
+export interface AudioLayer { id: string; src: string | null; volume: number; loop: boolean; fallback?: 'park-score' | 'wind' | 'water' }
 export interface Location {
   id: SceneId; name: string; category: string; tagline: string; description: string;
   map: { x: number; y: number; focusScale: number; labelOffset: readonly [number, number] };
@@ -26,7 +26,7 @@ export interface Location {
   camera: { overview: CameraPreset; arrival: CameraPreset; player: { position: Vec3; yaw: number; pitch: number; eyeHeight: number; walkSpeed: number } };
   environment: Environment;
   audio: { music: AudioLayer & { theme: string }; ambience: readonly AudioLayer[]; crossfadeMs: number };
-  scene: { id: SceneId; availability: 'planned'; seed: number; bounds: { min: Vec3; max: Vec3 }; asset: { mode: 'procedural'; modelUrl: null } | { mode: 'gltf'; modelUrl: string }; features: readonly { kind: 'fountain' | 'path-ring' | 'grass' | 'trees' | 'building' | 'water'; position: Vec3; size: Vec3 }[] };
+  scene: { id: SceneId; availability: 'planned' | 'ready'; seed: number; bounds: { min: Vec3; max: Vec3 }; asset: { mode: 'procedural'; modelUrl: null } | { mode: 'gltf'; modelUrl: string }; features: readonly { kind: 'fountain' | 'path-ring' | 'grass' | 'trees' | 'building' | 'water'; position: Vec3; size: Vec3 }[] };
 }
 export interface Region {
   id: RegionId; name: string; subtitle: string; description: string;
@@ -60,10 +60,10 @@ export const johto = {
         player: { position: [0, 1.7, 26], yaw: 0, pitch: 0, eyeHeight: 1.7, walkSpeed: 4.2 },
       },
       environment: goldenHour,
-      audio: { music: { id: 'national-park-theme', theme: 'National Park', src: null, volume: 0.48, loop: true }, ambience: [
-        { id: 'wind-leaves', src: null, volume: 0.2, loop: true }, { id: 'fountain-water', src: null, volume: 0.32, loop: true },
+      audio: { music: { id: 'national-park-theme', theme: 'Original park score (procedural)', src: null, volume: 0.48, loop: true, fallback: 'park-score' }, ambience: [
+        { id: 'wind-leaves', src: null, volume: 0.2, loop: true, fallback: 'wind' }, { id: 'fountain-water', src: null, volume: 0.32, loop: true, fallback: 'water' },
       ], crossfadeMs: 1800 },
-      scene: { id: 'national-park', availability: 'planned', seed: 235, bounds: { min: [-45, 0, -45], max: [45, 30, 45] }, asset: { mode: 'procedural', modelUrl: null }, features: [
+      scene: { id: 'national-park', availability: 'ready', seed: 235, bounds: { min: [-38, 0, -38], max: [38, 30, 38] }, asset: { mode: 'procedural', modelUrl: null }, features: [
         { kind: 'fountain', position: [0, 0, 0], size: [8, 3, 8] },
         { kind: 'path-ring', position: [0, 0.03, 0], size: [36, 0.1, 36] },
         { kind: 'grass', position: [-12, 0, -14], size: [12, 0.6, 10] },

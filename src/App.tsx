@@ -4,6 +4,10 @@ import { johto, getLocation, type Location } from './data/regions';
 import { explorerReducer } from './state/explorer';
 import { LocationArtwork } from './components/LocationArtwork';
 import { RegionMap } from './components/RegionMap';
+import { SceneLoader } from './components/SceneLoader';
+import { ExplorationHUD } from './components/ExplorationHUD';
+import { useLocationAudio } from './audio/useLocationAudio';
+import type { TouchMovement } from './scenes/shared/FirstPersonController';
 export default function App() {
   const [state,dispatch]=useReducer(explorerReducer,{phase:'map'});
   const [selectedId,setSelectedId]=useState(johto.locations[0].id as Location['id']);
@@ -14,12 +18,29 @@ export default function App() {
   const selected=getLocation(johto,selectedId)!;
   const shown=state.phase==='map'&&hovered?hovered:selected;
   const filtered=johto.locations.filter(l=>`${l.name} ${l.category}`.toLowerCase().includes(query.toLowerCase()));
-  const select=useCallback((location: Location)=>{setHovered(null);setSelectedId(location.id);dispatch({type:'SELECT',locationId:location.id,transitionId:++serial.current});},[]);
+  const sceneVisible = ['loading','entering','exploring','error'].includes(state.phase);
+  const touchMovement = useRef<TouchMovement>({ forward: 0, right: 0 });
+  const audio = useLocationAudio(state.phase === 'entering' || state.phase === 'exploring' ? selected : null);
+  const select=useCallback((location: Location)=>{
+    const playable = location.scene.availability === 'ready';
+    if (playable) audio.unlock();
+    setHovered(null); setSelectedId(location.id);
+    dispatch({type:'SELECT',locationId:location.id,transitionId:++serial.current,playable});
+  },[audio.unlock]);
+  const transitionId = state.phase === 'map' ? -1 : state.transitionId;
+  const sceneReady = useCallback(()=>dispatch({type:'SCENE_READY',transitionId}),[transitionId]);
+  const sceneEntered = useCallback(()=>dispatch({type:'ENTERED',transitionId}),[transitionId]);
+  const sceneError = useCallback(()=>dispatch({type:'FAILED',transitionId}),[transitionId]);
+  useEffect(()=>{
+    if(state.phase!=='loading') return;
+    const timer=setTimeout(sceneError,25000);
+    return ()=>clearTimeout(timer);
+  },[state.phase,sceneError]);
   const settled=useCallback((id:number,returning:boolean)=>dispatch({type:returning?'RESTORED':'ARRIVED',transitionId:id}),[]);
-  const returnToMap=useCallback(()=>dispatch({type:'RETURN',transitionId:++serial.current}),[]);
+  const returnToMap=useCallback(()=>{if(document.pointerLockElement)document.exitPointerLock();touchMovement.current={forward:0,right:0};dispatch({type:'RETURN',transitionId:++serial.current});},[]);
   const wasMap=useRef(true);
   useEffect(()=>{
-    if(state.phase==='preview')returnRef.current?.focus();
+    if(state.phase==='preview'||state.phase==='error')returnRef.current?.focus();
     if(state.phase==='map'&&!wasMap.current)document.getElementById(`location-${selectedId}`)?.focus();
     wasMap.current=state.phase==='map';
     const escape=(e:KeyboardEvent)=>{if(e.key==='Escape'&&state.phase!=='map')returnToMap();};
@@ -27,7 +48,7 @@ export default function App() {
   },[state.phase,selectedId,returnToMap]);
   return <div className="app-shell">
     <header className="topbar"><a href="./" className="brand" aria-label="PokeEarth home"><span className="brand-mark"><Globe2 size={22}/></span>Poke<span>Earth</span><span className="beta">ATLAS / 01</span></a><div className="topbar-right"><span className="live-dot"/> A little closer to the world you love <span className="version">JOHTO EDITION</span></div></header>
-    <main className="explorer">
+    <main className="explorer" inert={sceneVisible} aria-hidden={sceneVisible}>
       <aside className="sidebar">
         <div className="region-selector"><Globe2 size={17}/><label htmlFor="region">REGION</label><select id="region" value="johto" aria-label="Select region" onChange={()=>{}}><option value="johto">Johto</option><option disabled>Kanto · planned</option><option disabled>Hoenn · planned</option><option disabled>Sinnoh · planned</option></select><ChevronDown size={16}/></div>
         <div className="intro"><div className="eyebrow">ANOTHER WAY TO EXPLORE</div><h1>A world of<br/><em>quiet wonders.</em></h1><p>{johto.description}</p></div>
@@ -43,10 +64,17 @@ export default function App() {
       <section className="map-area" aria-label="Region explorer">
         <RegionMap region={johto} state={state} selected={selected} onSelect={select} onHover={setHovered} onSettled={settled}/>
         {state.phase==='map'&&<div className="map-hint"><Navigation size={16}/><span>Pick a place. Get a little lost.</span><kbd>Drag to pan</kbd></div>}
-        <div className="sr-only" role="status" aria-live="polite">{state.phase==='focusing'?`Flying to ${selected.name}`:state.phase==='preview'?`${selected.name} location preview. First-person exploration is planned for phase two.`:state.phase==='returning'?'Returning to Johto map':'Johto map ready'}</div>
+        <div className="sr-only" role="status" aria-live="polite">{state.phase==='focusing'?`Flying to ${selected.name}`:state.phase==='preview'?`${selected.name} location preview. This location is available as a map preview.`:state.phase==='returning'?'Returning to Johto map':state.phase==='exploring'?'Exploring National Park':'Johto map ready'}</div>
         {state.phase==='focusing'&&<div className="travel-chip"><span className="live-dot"/>Approaching {selected.name}…</div>}
-        {state.phase==='preview'&&<section className="destination-panel" aria-labelledby="destination-title"><button ref={returnRef} className="back-button" onClick={returnToMap}><ArrowLeft size={16}/>Return to region map <kbd>Esc</kbd></button><div className="destination-body"><span className="eyebrow"><MapPin size={13}/> JOHTO / {selected.category.toUpperCase()}</span><h2 id="destination-title">{selected.name}</h2><p>{selected.description}</p><div className="landmarks">{selected.landmarks.map(l=><span key={l}>{l}</span>)}</div><div className="phase-note"><span className="live-dot"/>Location preview · First-person exploration arrives in phase 2</div></div></section>}
+        {state.phase==='preview'&&<section className="destination-panel" aria-labelledby="destination-title"><button ref={returnRef} className="back-button" onClick={returnToMap}><ArrowLeft size={16}/>Return to region map <kbd>Esc</kbd></button><div className="destination-body"><span className="eyebrow"><MapPin size={13}/> JOHTO / {selected.category.toUpperCase()}</span><h2 id="destination-title">{selected.name}</h2><p>{selected.description}</p><div className="landmarks">{selected.landmarks.map(l=><span key={l}>{l}</span>)}</div><div className="phase-note"><span className="live-dot"/>Location preview · This 3D destination is planned</div></div></section>}
       </section>
     </main>
+    {sceneVisible&&<section className="scene-layer" data-phase={state.phase} aria-label="National Park exploration">
+      {(state.phase==='loading'||state.phase==='entering'||state.phase==='exploring')&&<>
+        <SceneLoader key={transitionId} location={selected} phase={state.phase} touchMovement={touchMovement} onReady={sceneReady} onEntered={sceneEntered} onError={sceneError}/>
+        <ExplorationHUD active={state.phase==='exploring'} onReturn={returnToMap} audio={audio} touchMovement={touchMovement}/>
+      </>}
+      {state.phase==='error'&&<div className="scene-error" role="alert"><span className="eyebrow">LET’S FIND OUR WAY BACK</span><h2>The park couldn’t open.</h2><p>The 3D view needs WebGL. Try again, or return to the regional map.</p><button className="scene-button" onClick={()=>dispatch({type:'RETRY',transitionId:++serial.current})}>Retry 3D view</button><button ref={returnRef} className="scene-button" onClick={returnToMap}>Return to region map</button></div>}
+    </section>}
   </div>;
 }

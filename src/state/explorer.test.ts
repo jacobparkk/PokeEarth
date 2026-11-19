@@ -9,7 +9,7 @@ describe('exploration transitions', () => {
     state = explorerReducer(state, { type: 'SELECT', locationId: 'national-park', transitionId: 1 });
     state = explorerReducer(state, { type: 'SELECT', locationId: 'ecruteak-city', transitionId: 2 });
     state = explorerReducer(state, { type: 'ARRIVED', transitionId: 1 });
-    assert.deepEqual(state, { phase: 'focusing', locationId: 'ecruteak-city', transitionId: 2 });
+    assert.deepEqual(state, { phase: 'focusing', locationId: 'ecruteak-city', transitionId: 2, playable: false });
     assert.equal(explorerReducer(state, { type: 'ARRIVED', transitionId: 2 }).phase, 'preview');
   });
 
@@ -30,7 +30,7 @@ describe('exploration transitions', () => {
     state = explorerReducer(state, { type: 'RETURN', transitionId: 2 });
     state = explorerReducer(state, { type: 'RESTORED', transitionId: 2 });
     state = explorerReducer(state, { type: 'SELECT', locationId: 'national-park', transitionId: 3 });
-    assert.deepEqual(state, { phase: 'focusing', locationId: 'national-park', transitionId: 3 });
+    assert.deepEqual(state, { phase: 'focusing', locationId: 'national-park', transitionId: 3, playable: false });
   });
 });
 
@@ -53,5 +53,34 @@ describe('region data contract', () => {
         assert.ok(layer.volume >= 0 && layer.volume <= 1);
       }
     }
+  });
+});
+
+
+describe('first-person lifecycle', () => {
+  it('waits for both map arrival and scene readiness before enabling exploration', () => {
+    let state: ExplorerState = explorerReducer({ phase: 'map' }, { type: 'SELECT', locationId: 'national-park', transitionId: 1, playable: true });
+    assert.equal(explorerReducer(state, { type: 'SCENE_READY', transitionId: 1 }).phase, 'focusing');
+    state = explorerReducer(state, { type: 'ARRIVED', transitionId: 1 });
+    assert.equal(state.phase, 'loading');
+    assert.equal(explorerReducer(state, { type: 'ENTERED', transitionId: 1 }).phase, 'loading');
+    state = explorerReducer(state, { type: 'SCENE_READY', transitionId: 1 });
+    assert.equal(state.phase, 'entering');
+    state = explorerReducer(state, { type: 'ENTERED', transitionId: 1 });
+    assert.equal(state.phase, 'exploring');
+  });
+  it('recovers from failure and rejects ready signals from an earlier attempt', () => {
+    let state: ExplorerState = explorerReducer({ phase: 'map' }, { type: 'SELECT', locationId: 'national-park', transitionId: 1, playable: true });
+    state = explorerReducer(state, { type: 'ARRIVED', transitionId: 1 });
+    state = explorerReducer(state, { type: 'FAILED', transitionId: 1 });
+    assert.equal(state.phase, 'error');
+    state = explorerReducer(state, { type: 'RETRY', transitionId: 2 });
+    assert.equal(state.phase, 'loading');
+    state = explorerReducer(state, { type: 'SCENE_READY', transitionId: 1 });
+    assert.equal(state.phase, 'loading');
+    state = explorerReducer(state, { type: 'RETURN', transitionId: 3 });
+    state = explorerReducer(state, { type: 'SCENE_READY', transitionId: 2 });
+    assert.equal(state.phase, 'returning');
+    assert.equal(explorerReducer(state, { type: 'RESTORED', transitionId: 3 }).phase, 'map');
   });
 });
