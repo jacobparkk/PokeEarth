@@ -43,6 +43,7 @@ export function RegionMap({ region, state, selected, onSelect, onHover, onSettle
       onPointerCancel={()=>{drag.current=null;}}>
       <MapArtwork region={region}/>
       {region.locations.map(location=> { const active=selected.id===location.id; const [lx,ly]=location.map.labelOffset; return <g key={location.id} data-pin="true" role="button" tabIndex={free?0:-1} aria-label={`Preview ${location.name}`} aria-pressed={active} className={`map-pin ${active?'active':''}`} transform={`translate(${location.map.x} ${location.map.y})`} onPointerEnter={()=>free&&onHover(location)} onPointerLeave={()=>onHover(null)} onFocus={()=>onHover(location)} onBlur={()=>onHover(null)} onClick={()=>{if(free&&!suppressClick.current)onSelect(location);}} onKeyDown={e=>{if(free&&(e.key==='Enter'||e.key===' ')){e.preventDefault();onSelect(location);}}}>
+        <rect x={lx < 0 ? -25 - location.name.length * 8 : -25} y="-25" width={location.name.length * 8 + 50} height="50" fill="transparent"/>
         <circle className="pin-halo" r="25"/><circle r="14" className="pin-body"/><circle r="5" className="pin-center"/>
         <text x={lx} y={ly} textAnchor={lx<0?'end':'start'} className="pin-label">{location.name}</text>
       </g>; })}

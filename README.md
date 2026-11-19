@@ -22,7 +22,7 @@ The atlas and park are stylized interpretations, not tile-for-tile reconstructio
 Use Node.js 22.18+ (Node 24 recommended):
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
@@ -41,7 +41,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The browser script starts the production preview server, tests desktop and mobile behavior, and writes screenshots to `browser-results/`. GitHub Actions runs unit tests, type checking, the production build, and browser checks on feature-branch pushes. Its `pokeearth-review` artifact contains the built site, screenshots, and the generated dependency lockfile.
+The browser script starts the production preview server, tests desktop and mobile behavior, and writes screenshots to `browser-results/`. GitHub Actions uses the runner’s preinstalled Chrome and runs unit tests, type checking, the production build, and browser checks on feature-branch pushes. Its `pokeearth-review` artifact contains the built site, screenshots, and the generated dependency lockfile.
 
 ## Controls
 

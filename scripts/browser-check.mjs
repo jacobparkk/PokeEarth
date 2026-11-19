@@ -6,7 +6,7 @@ const server=spawn('node',['node_modules/vite/bin/vite.js','preview','--host','1
 let browser;
 try {
   for(let i=0;i<80;i++) { try { if((await fetch('http://127.0.0.1:4173')).ok)break; } catch {} await new Promise(resolve=>setTimeout(resolve,250)); }
-  browser=await chromium.launch({args:['--enable-webgl','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+  browser=await chromium.launch({channel:process.env.POKEEARTH_BROWSER_CHANNEL || undefined,args:['--enable-webgl','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
   await mkdir('browser-results',{recursive:true});
   const page=await browser.newPage({viewport:{width:1440,height:1000}});
   const errors=[];
@@ -17,6 +17,7 @@ try {
   await page.locator('.scene-layer[data-phase="exploring"]').waitFor({timeout:30000});
   const canvas=page.locator('.scene-layer canvas');
   await page.screenshot({path:'browser-results/national-park-desktop.png'});
+  await page.waitForFunction(()=>document.querySelector('.scene-layer canvas')?.dataset.position);
   const before=await canvas.getAttribute('data-position');
   await page.keyboard.down('w'); await page.waitForTimeout(600); await page.keyboard.up('w');
   const after=await canvas.getAttribute('data-position');
@@ -46,6 +47,7 @@ try {
   const forward=phone.getByRole('button',{name:'Move forward',exact:true});
   assert.ok(await forward.isVisible());
   const mobileCanvas=phone.locator('.scene-layer canvas');
+  await phone.waitForFunction(()=>document.querySelector('.scene-layer canvas')?.dataset.position);
   const initialMobile=await mobileCanvas.getAttribute('data-position');
   const box=await forward.boundingBox();
   await phone.mouse.move(box.x+box.width/2,box.y+box.height/2);await phone.mouse.down();await phone.waitForTimeout(500);await phone.mouse.up();
