@@ -1,115 +1,162 @@
-# PokeEarth system architecture
+# PokeEarth — System Architecture
 
-## Technology choice
+## 1. Stack
 
-Use React 19 + TypeScript + Vite for a client-rendered explorer. The MVP has no accounts, server data, or server-rendering requirements, so Next.js adds infrastructure without improving this first phase. If those requirements appear, the components and typed region data can move into a Next.js client boundary.
+| Concern | Choice | Why |
+|---|---|---|
+| App framework | **Next.js 15 (App Router) + React 19** | File routing for future `/[region]/[location]` deep links, code-splitting per scene, easy static hosting. |
+| 3D | **three.js + @react-three/fiber 9 + drei 10** | Declarative scene graph, `<Sky>`, `<PointerLockControls>`, instancing helpers, `useGLTF` for later assets. |
+| Post-processing | **@react-three/postprocessing** | Bloom / vignette / saturation from `environment.postFx`. |
+| Audio | **Howler.js** | Cross-browser decoding, format fallbacks, fades, mobile unlock, 3D panning for spatial ambience. |
+| State | **Zustand** | One tiny store shared by the DOM UI *and* the R3F render loop (readable outside React via `getState()`, no re-render cost in `useFrame`). |
+| UI animation | **motion** (Framer Motion) | Hover cards and the transition curtain. |
+| Styling | **Tailwind CSS v4** | Design tokens in `globals.css` (`ink`, `gold`, `parchment`). |
 
-Phase one uses SVG for the illustrated regional overview: deterministic, resolution-independent, accessible, and independent of a WebGL context. CSS handles the responsive layout; requestAnimationFrame drives camera interpolation. No extra state-management or animation dependency is needed.
+## 2. File tree
 
-Phase two will add Three.js, React Three Fiber 9 (the React 19-compatible major), Drei controls/utilities as needed, and Howler.js for decoded music loops and crossfades. Those packages are not installed or imported by this phase. The first-person scene will be lazy-loaded so the atlas stays light. Procedural mesh geometry, seeded foliage, and shader-based grass/water will supply the scene without remote GLB dependencies.
-
-References:
-- https://r3f.docs.pmnd.rs/getting-started/installation
-- https://vite.dev/guide/
-
-## Ownership
-
-| Module | Owns |
-| --- | --- |
-| `data/regions.ts` | Serializable region and location configuration; IDs; coordinates; camera, environment, sound, and asset contracts |
-| `state/explorer.ts` | Explicit exploration phases and stale-event protection |
-| `App.tsx` | Selected destination, search/hover UI, accessible announcements, return navigation |
-| `components/RegionMap.tsx` | Viewbox camera, animation lifecycle, pin activation, pan/zoom |
-| `components/MapArtwork.tsx` | Local schematic Johto terrain, routes, towns, forests, mountains, and water |
-| `components/LocationArtwork.tsx` | Locally rendered location previews |
-| `styles.css` | Responsive interface, focus states, motion preference |
-
-Map pins refer to scene IDs; they never import a scene directly. The `regions` registry currently contains Johto only. Region IDs also cover future regions, while `Partial<Record<RegionId, Region>>` prevents implying that unbuilt regions are selectable.
-
-## Current state transition
-
-```mermaid
-stateDiagram-v2
-  [*] --> map
-  map --> focusing: SELECT(locationId, transitionId)
-  focusing --> preview: ARRIVED(matching transitionId)
-  focusing --> returning: Escape
-  preview --> returning: Return or Escape
-  returning --> map: RESTORED(matching transitionId)
+```
+pokeearth/
+├─ ARCHITECTURE.md
+├─ package.json · tsconfig.json · next.config.ts · postcss.config.mjs
+├─ public/
+│  ├─ audio/johto/{music,ambience}/   ← your .ogg/.mp3 files (paths come from locations.ts)
+│  └─ models/johto/<location>/        ← optional .glb files that fill scene "model slots"
+└─ src/
+   ├─ app/
+   │  ├─ layout.tsx                   fonts, metadata
+   │  ├─ page.tsx                     renders <ExplorerShell/>
+   │  └─ globals.css                  Tailwind v4 theme tokens, pin pulse, map grain
+   ├─ types/
+   │  └─ world.ts                     ★ the whole data schema (regions, locations, camera, env, audio, assets)
+   ├─ data/
+   │  ├─ regions.ts                   ★ region registry + lookup helpers (getRegion, getLocation…)
+   │  ├─ helpers.ts                   comingSoon() builder for map-only pins
+   │  ├─ kanto/  johto/  hoenn/  sinnoh/
+   │  │  ├─ index.ts                  RegionDefinition: theme, initial view, map theme audio
+   │  │  ├─ geography.ts              coastlines, islands, lakes, biomes, forests, mountains, routes, labels
+   │  │  └─ locations.ts              82 pins in total; 6 with full presets (one starter town per region + 2 Johto)
+   ├─ config/
+   │  └─ transitions.ts               every timing of the map ⇄ street hand-off
+   ├─ lib/
+   │  ├─ geometry.ts                  seeded RNG, spline paths, point-in-polygon, scatter
+   │  ├─ mapCamera.ts                 pure 2D camera math (project, clamp, zoom-around, fly interpolation)
+   │  └─ terrain.ts                   geography → deterministic trees/peaks/meadows/biomes/paths
+   ├─ store/
+   │  └─ useExplorerStore.ts          view state machine + persisted audio prefs
+   ├─ audio/
+   │  ├─ AudioManager.ts              Howler singleton: music crossfade, diffed ambience, 3D listener
+   │  └─ useSoundtrack.ts             maps explorer mode → map theme / location music + ambience
+   ├─ engine/                         reusable first-person engine (any location)
+   │  ├─ FirstPersonController.tsx    aerial→ground descent, WASD, pointer-lock + drag/touch look, collisions, head bob
+   │  ├─ SceneEnvironment.tsx         sun/hemisphere/shadows, physical sky, fog, bloom/saturation/tone map/vignette
+   │  ├─ ModelSlot.tsx                .glb plug-in point with procedural fallback + error boundary
+   │  ├─ AudioListenerSync.tsx        camera → Web Audio listener
+   │  ├─ runtime.ts                   scene runtime store + mutable player input
+   │  ├─ collision.ts · sun.ts
+   │  ├─ foliage/GrassField.tsx       instanced grass, GPU wind, blades part around the player
+   │  ├─ foliage/TreeField.tsx        instanced lumpy-canopy trees with wind sway
+   │  ├─ particles/AmbientParticles.tsx  pollen / falling leaves / fireflies / sea spray
+   │  └─ materials/water.ts           ripple + fresnel + glint water, falling-sheet shader
+   ├─ components/
+   │  ├─ ExplorerShell.tsx            mounts Map OR Street, plus header/sidebar/curtain/soundtrack
+   │  ├─ map/                         RegionMap, RegionTerrain, MapPin, PinPreviewCard, RegionSidebar, useMapCamera
+   │  ├─ transition/TransitionCurtain.tsx
+   │  ├─ street/StreetViewGateway.tsx resolves the scene via registry (fallback arrival screen)
+   │  ├─ hud/StreetHud.tsx            return button, location card, now playing + volume, look prompt, crosshair
+   │  ├─ hud/TouchJoystick.tsx        mobile movement stick + run toggle
+   │  └─ ui/AppHeader.tsx             brand, breadcrumb, mute + master volume
+   └─ scenes/
+      ├─ registry.ts                  SceneKey → lazy(() => import(scene))
+      └─ national-park/
+         ├─ NationalParkScene.tsx     Canvas + world + controller + HUD
+         ├─ layout.ts                 paths SDF, grass fields, benches, lamps, hedges, trees, colliders
+         ├─ groundTexture.ts          2048² canvas-painted lawn / gravel / paving
+         ├─ Fountain.tsx · Gatehouse.tsx · ParkProps.tsx
 ```
 
-1. Selecting a pin or list item records its ID and increments a monotonically increasing transition ID.
-2. The map interpolates its camera center and scale toward the pin using smoothstep `t*t*(3-2*t)`. Duration is 1,150 ms, or zero under reduced motion.
-3. The final animation frame emits ARRIVED. Only the matching in-flight transition can complete. This prevents stale callbacks after cancellation or a later selection.
-4. The location preview appears, announces the destination, and focuses the return button. It explicitly identifies first-person mode as phase two.
-5. Return or Escape starts a new transition to the configured regional overview. Completion restores keyboard focus to the destination list item when present.
+## 3. Map ⇄ First-Person state machine
 
-The map stays mounted throughout, preserving the regional artwork and avoiding reloads. The current return restores the region's home camera rather than the user's last pan position.
+```
+           enterLocation(id)                 completeEnter()
+   ┌─────┐ ───────────────▶ ┌──────────┐ ────────────────▶ ┌────────┐
+   │ map │                  │ entering │                   │ street │
+   └─────┘ ◀─────────────── └──────────┘                   └────────┘
+      ▲      (no direct back)                                   │ exitToMap()
+      │                completeExit()       ┌─────────┐         │
+      └──────────────────────────────────── │ exiting │ ◀───────┘
+                                            └─────────┘
+```
 
-## Planned first-person handoff — not implemented in this delivery
+One store field, `mode`, decides what is mounted. **Only one world exists at a time**: the SVG map is unmounted while the WebGL scene runs, and vice versa, so neither competes for the GPU.
 
-Extend the reducer with loading, entering, exploring, and recoverable error states. A scene registry maps each `scene.id` to a lazy-loaded scene module. National Park will be implemented first; the other locations must keep their preview-only status until they have scenes.
+### Enter timeline (`config/transitions.ts`)
 
-- Selection starts the map focus animation and preloads the chosen scene.
-- Entering waits for both the map animation and the scene-ready signal.
-- Mount the scene with its local overview camera, then animate through `camera.arrival` to `camera.player`. Map units are not interpolated directly into scene metres. A brief screen-space dissolve joins the independent coordinate systems.
-- Keep controls disabled during the camera motion. At the player pose, enable WASD and drag-to-look. Pointer lock is optional and requested only from a deliberate user gesture.
-- Escape or Return releases pointer lock, disables input, fades out audio, restores the regional camera, and returns keyboard focus.
-- Scene-load failures display a retry/return control. The map remains usable.
+```
+t=0ms      click pin → mode = "entering"
+           RegionMap: camera flies to pin (log-space zoom 1×→7×) while the map plane
+           tilts up to 38° with CSS perspective and a horizon haze fades in (Google-Earth dive)
+t=850ms    curtain starts fading in (550ms) — location title card appears on it
+t=1400ms   dive done → completeEnter() → mode = "street"
+           RegionMap unmounts, StreetViewGateway mounts the lazy 3D scene under the curtain
+t=1650ms   curtain fades out (900ms) revealing the scene, whose camera starts at
+           camera.aerial (matching the dive) and descends to camera.ground over
+           descentDurationMs; useSoundtrack fades in audio.music + ambience
+```
 
-Planned new modules (these are architectural boundaries, not empty source files):
+### Exit timeline
 
-| Module | Responsibility |
-| --- | --- |
-| `scenes/SceneHost.tsx` | Lazy loading, errors, Canvas lifecycle, ready signals |
-| `scenes/registry.ts` | Scene-ID-to-module mapping |
-| `scenes/national-park/NationalPark.tsx` | Fountain, circular paths, grass, tree boundary |
-| `scenes/shared/EnvironmentRig.tsx` | Sky, lights, fog, weather, exposure |
-| `scenes/shared/FirstPersonController.tsx` | Movement, mouse/drag look, collision and bounds |
-| `scenes/shared/Foliage.tsx` | Seeded placement and instanced rendering |
-| `audio/AudioProvider.tsx` | Long-lived audio bus, mute, volume, cleanup |
-| `audio/useLocationAudio.ts` | Location-change crossfades and ambient layers |
-| `components/ExplorationHUD.tsx` | Return, volume/mute, controls help |
+```
+"Return to Region Map" / Esc → mode = "exiting"
+curtain fades in (500ms), audio fades out (music.fadeOutMs), pointer lock released
+curtain onAnimationComplete → completeExit() → mode = "map", returnFromLocationId = id
+RegionMap remounts zoomed 7× + tilted on that pin, curtain fades out,
+camera flies back out to 1.8× around the pin while un-tilting (1300ms) → consumeReturn()
+```
 
-## Data schema
+The 3D camera's `aerial` pose is deliberately "the view from the bottom of the map dive", so the cut hidden by the curtain reads as one continuous descent.
 
-`Region` holds the atlas design dimensions, its home camera, locations, contextual towns, and schematic routes. `Location` holds identity, prose, map pin placement, preview colors, landmarks, local scene cameras, environment, audio, procedural geometry hints, bounds, and deterministic seed.
+## 4. Data-driven design
 
-| Location | Pin (x, y) | Focus scale | Player spawn (x, y, z) | Lighting | Music hook |
-| --- | --- | --- | --- | --- | --- |
-| National Park | 548, 388 | 2.4 | 0, 1.7, 26 | Golden hour | national-park-theme |
-| Ecruteak City | 588, 278 | 2.4 | 0, 1.7, 28 | Sunset / haze | ecruteak-theme |
-| New Bark Town | 930, 590 | 2.4 | 0, 1.7, 20 | Morning | new-bark-theme |
+Everything comes from `RegionDefinition` → `LocationDefinition` (see `types/world.ts`):
 
-Coordinates:
+- **Map**: `geography` (polygons + routes) is rendered procedurally; `location.map` places the pin, sets its label tier and dive zoom.
+- **Preview**: `location.preview` (tagline, 3-colour palette for generated art, highlights).
+- **Camera**: `camera.aerial` (descent start), `camera.ground` (spawn, yaw/pitch, eye height, speed, walkable bounds).
+- **Environment**: sun angle/colour/shadows, hemisphere light, physical sky params, fog, weather (cloud, wind, particles), post-FX.
+- **Audio**: one music track (fades) + N ambience layers, optionally spatial (positioned in metres) or wind-driven.
+- **Scene**: `sceneKey` → registry, `seed` for deterministic foliage, `models[]` slots.
 
-- Atlas: 1,200 × 860 design units; origin top-left, x east/right, y south/down. Values are schematic placements, not geographic latitude/longitude.
-- Scene: metres; right-handed; Y up; yaw zero faces -Z; rotations in radians.
-- `camera.player.position` is the eye position, already including `eyeHeight` (do not add it twice).
-- `bounds` describe the playable volume. A controller must constrain horizontal movement; the scene must also supply collider geometry for objects within it.
-- Path-ring `size` is its outer bounding diameter on X/Z, not its radius. Feature sizes are full extents.
-- Seeds must drive a deterministic generator; never call unseeded random placement on each React render.
-- Fog near/far and camera clipping distances are in metres. Wind direction is a vector to normalize in the shader; speed is a scene animation multiplier. Cloud cover, precipitation, and gust strength use 0–1 values.
-- Music and ambient volume use 0–1. Crossfade duration uses milliseconds.
+`ExplorableLocation` vs `PreviewLocation` is a discriminated union, so the compiler guarantees a location can't be entered without camera/env/audio/scene data.
 
-## Audio integration contract
+### Adding things
 
-The map initializes no audio. All `src` fields are `null`, expressing deliberate absence without broken requests. After supplying local tracks, update the data to base-aware paths. The music layer also names its intended theme, so tracks are decoupled from location names.
+| To add… | Do this |
+|---|---|
+| A region | `src/data/<region>/{geography,locations,index}.ts`, import it in `data/regions.ts` replacing its locked stub. No component changes. |
+| A pin | Append to `locations.ts` with `status: "coming-soon"`. |
+| A playable location | Flip to `"explorable"`, add `camera/environment/audio/scene`, add its key to `SceneKey`, register the scene component in `scenes/registry.ts`. |
+| Music / ambience | Drop files in `public/audio/<region>/…`; paths are already in the data. Missing files fail silently. |
+| A custom 3D model | Put `.glb` in `public/models/<region>/<location>/`, set the slot's `url`. The scene renders the file instead of `proceduralFallback`. `assetMode: "gltf"` + a `terrain` slot swaps the whole environment. |
+| Painted map art | Replace `<g id="terrain-art">` in `RegionTerrain.tsx` with an `<image>` at the same 1000×640 scale; pins and routes still line up. |
 
-The phase-two manager should create the audio context from a user gesture, keep one persistent audio bus above the scene switch, load the next track before fading, and fade old and new music concurrently. Track-load failure leaves exploration usable and shows an audio-unavailable state. A null music source means silence or procedural ambience, never a speculative fetch. Global mute and volume apply during transitions and must not be overwritten by a fade. Disconnect and unload retired sources after fades finish.
+## 5. Performance notes
 
-## Asset strategy
+- Terrain SVG is built once (seeded, memoised); panning only rewrites one `transform` attribute.
+- Paper grain is a static screen-space overlay — no SVG filters inside the transformed group.
+- Routes use `vector-effect: non-scaling-stroke` so they stay crisp and thin at 9× zoom.
+- Each 3D scene is a separate lazy chunk; three.js isn't downloaded until the first drop-in.
+- Zustand lets the R3F loop read prefs via `getState()` without React re-renders.
 
-`scene.asset` is a discriminated union: `{ mode: 'procedural', modelUrl: null }` or `{ mode: 'gltf', modelUrl: string }`. Procedural features remain the fallback; GLB assets will only be loaded when explicitly configured. Put future files in `public/assets/models` and audio in `public/assets/audio`. Resolve public paths against Vite's base path for subfolder hosting.
+## 6. First-person engine (Phase 4)
 
-The future asset loader should retain separate collision geometry and spawn coordinates, use a loading/error boundary, dispose geometries/materials on unmount, and avoid remote dependency URLs. National Park's repeated tree and grass geometry should use instancing; cap device pixel ratio and shadow-map resolution for mobile. Asset failures must not strand a user in a black screen.
+**Audio flow.** `useSoundtrack()` (mounted once in the shell) watches the state machine:
+`map` → region map theme · `entering` → fade out over the dive · `street` → location music (fadeInMs) + ambience layers ·
+`exiting` → fade out (music.fadeOutMs). `AudioManager` crossfades music, diffs ambience layers by id, positions spatial layers
+with HRTF panning, and `AudioListenerSync` moves the listener with the camera. Master volume/mute go through `Howler.volume/mute`.
 
-## Adding another region
+**Controls.** Click the scene to capture the mouse (pointer lock); drag to look without capturing; touch-drag to look and use the on-screen
+stick to move. WASD/arrows to walk, Shift to run. Esc frees the mouse; Esc again (or the HUD button) returns to the map.
 
-1. Add its complete `Region` data and register it in `regions`.
-2. Add its own map artwork renderer and extend the map artwork discriminator/registry. Route lines, pins, labels, and views remain data-driven.
-3. Populate scene IDs and the phase-two scene registry for finished locations.
-4. Enable it in the region selector only after its atlas is available.
-5. Cancel active transitions on region switches and reset the map to that region's home camera.
-
-The single-region app currently renders Johto explicitly. The region selector lists other planned regions as disabled, rather than presenting nonfunctional controls.
+**Making another location playable** (e.g. Ecruteak City): create `src/scenes/ecruteak-city/` with a layout + scene component that
+reuses `SceneEnvironment`, `FirstPersonController`, `TreeField`, `GrassField`, `AmbientParticles` and `ModelSlot`, then add one line to
+`scenes/registry.ts`. Camera, lighting, weather, audio and asset slots are already in the data.
