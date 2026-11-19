@@ -67,11 +67,19 @@ pokeearth/
    │  └─ ui/AppHeader.tsx             brand, breadcrumb, mute + master volume
    └─ scenes/
       ├─ registry.ts                  SceneKey → lazy(() => import(scene))
-      └─ national-park/
-         ├─ NationalParkScene.tsx     Canvas + world + controller + HUD
-         ├─ layout.ts                 paths SDF, grass fields, benches, lamps, hedges, trees, colliders
-         ├─ groundTexture.ts          2048² canvas-painted lawn / gravel / paving
-         ├─ Fountain.tsx · Gatehouse.tsx · ParkProps.tsx
+      ├─ shared/                      Gatehouse, Flowerbeds, roof geometry helpers
+      ├─ national-park/
+      │  ├─ NationalParkScene.tsx     Canvas + world + controller + HUD
+      │  ├─ layout.ts                 paths SDF, grass fields, benches, lamps, hedges, trees, colliders
+      │  ├─ groundTexture.ts          2048² canvas-painted lawn / gravel / paving
+      │  └─ Fountain.tsx · ParkProps.tsx
+      └─ towns/                       one data-driven engine for every town
+         ├─ TownScene.tsx             generic scene (Pallet, New Bark, Littleroot, Twinleaf, Ecruteak)
+         ├─ layouts.ts                ★ per-town streets, water, greenery, props, tree belt
+         ├─ types.ts · resolve.ts     layout schema; footprints, trees, grass, colliders (deterministic)
+         ├─ buildings.tsx             western house, machiya, lab, Bell Tower, Burned Tower, dance theater
+         ├─ props.tsx                 fences, signposts, mailboxes, stone lanterns, torii, windmills, truck
+         ├─ groundTexture.ts · Water.tsx  painted ground; sea with surging foam line, lakes
 ```
 
 ## 3. Map ⇄ First-Person state machine
@@ -157,6 +165,10 @@ with HRTF panning, and `AudioListenerSync` moves the listener with the camera. M
 **Controls.** Click the scene to capture the mouse (pointer lock); drag to look without capturing; touch-drag to look and use the on-screen
 stick to move. WASD/arrows to walk, Shift to run. Esc frees the mouse; Esc again (or the HUD button) returns to the map.
 
-**Making another location playable** (e.g. Ecruteak City): create `src/scenes/ecruteak-city/` with a layout + scene component that
-reuses `SceneEnvironment`, `FirstPersonController`, `TreeField`, `GrassField`, `AmbientParticles` and `ModelSlot`, then add one line to
-`scenes/registry.ts`. Camera, lighting, weather, audio and asset slots are already in the data.
+**Making another town playable** (e.g. Goldenrod City):
+1. In the region data, turn its pin into an `ExplorableLocation` (camera, environment, audio and `scene.models` for its main buildings).
+2. Add its key to `SceneKey`, and a `TownLayout` to `scenes/towns/layouts.ts` (streets, water, props, trees).
+3. Map the key to `TownScene` in `scenes/registry.ts`.
+
+Building kinds come from each slot's `proceduralFallback` (`gable-house`, `machiya`, `lab-building`, `gatehouse`, `nine-tier-pagoda`, `ruined-pagoda`, `wooden-hall`).
+Landmarks that don't fit the town pattern (like National Park) get their own scene folder that reuses the same engine pieces.

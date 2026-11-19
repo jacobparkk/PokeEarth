@@ -73,7 +73,7 @@ export const sinnohLocations: readonly LocationDefinition[] = [
         { slot: "terrain", url: null, proceduralFallback: "procedural:town-ground-and-paths", position: [0, 0, 0], rotationDeg: [0, 0, 0], scale: 1, castShadow: false, receiveShadow: true },
         { slot: "player-house", url: null, proceduralFallback: "procedural:gable-house", position: [-8, 0, -6], rotationDeg: [0, 0, 0], scale: 1, castShadow: true, receiveShadow: true },
         { slot: "rival-house", url: null, proceduralFallback: "procedural:gable-house", position: [8, 0, -6], rotationDeg: [0, 0, 0], scale: 1, castShadow: true, receiveShadow: true },
-        { slot: "route-gate", url: null, proceduralFallback: "procedural:gatehouse", position: [0, 0, -24], rotationDeg: [0, 0, 0], scale: 1, castShadow: true, receiveShadow: true },
+        { slot: "route-gate", url: null, proceduralFallback: "procedural:gatehouse", position: [0, 0, -24], rotationDeg: [0, 180, 0], scale: 1, castShadow: true, receiveShadow: true },
       ],
     },
   },

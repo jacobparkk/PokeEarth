@@ -114,3 +114,70 @@ export function createWaterfallMaterial(color: string) {
     `,
   });
 }
+
+/**
+ * Open sea that begins at `shoreZ` and extends toward +z. The waterline
+ * surges back and forth over the beach with a foam band, and swells roll in.
+ */
+export function createSeaMaterial(opts: { shoreZ: number; deep: string; shallow: string; sky: string; sunDir: Vector3 }) {
+  return new ShaderMaterial({
+    transparent: true,
+    fog: true,
+    uniforms: UniformsUtils.merge([
+      UniformsLib.fog,
+      {
+        uTime: { value: 0 },
+        uShore: { value: opts.shoreZ },
+        uDeep: { value: new Color(opts.deep) },
+        uShallow: { value: new Color(opts.shallow) },
+        uSky: { value: new Color(opts.sky) },
+        uSunDir: { value: opts.sunDir.clone().normalize() },
+      },
+    ]),
+    vertexShader: /* glsl */ `
+      varying vec3 vWorld;
+      #include <fog_pars_vertex>
+      void main() {
+        vec4 world = modelMatrix * vec4(position, 1.0);
+        vWorld = world.xyz;
+        vec4 mvPosition = viewMatrix * world;
+        gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      uniform float uShore;
+      uniform vec3 uDeep;
+      uniform vec3 uShallow;
+      uniform vec3 uSky;
+      uniform vec3 uSunDir;
+      varying vec3 vWorld;
+      #include <fog_pars_fragment>
+      void main() {
+        float surge = sin(uTime * 0.55) * 1.1 + sin(uTime * 1.3 + vWorld.x * 0.08) * 0.35;
+        float waterline = uShore - 1.2 + surge;
+        float d = vWorld.z - waterline;
+        if (d < 0.0) discard;
+        float swell = sin(vWorld.z * 0.45 - uTime * 1.4 + sin(vWorld.x * 0.05) * 2.0);
+        float chop = sin(vWorld.x * 1.7 + uTime * 1.9) * sin(vWorld.z * 1.3 - uTime * 1.2);
+        vec3 n = normalize(vec3(chop * 0.08, 1.0, swell * 0.12 + chop * 0.05));
+        vec3 viewDir = normalize(cameraPosition - vWorld);
+        float fresnel = pow(1.0 - clamp(dot(n, viewDir), 0.0, 1.0), 3.0);
+        float depth = smoothstep(0.0, 22.0, d);
+        vec3 col = mix(uShallow, uDeep, depth);
+        col = mix(col, uSky, clamp(fresnel * 0.8, 0.0, 0.8));
+        col += vec3(1.0, 0.93, 0.8) * pow(max(dot(reflect(-uSunDir, n), viewDir), 0.0), 120.0) * 2.0;
+        // Foam at the waterline plus a second line where each swell breaks.
+        float foam = 1.0 - smoothstep(0.0, 1.4, d);
+        float breakLine = smoothstep(0.75, 1.0, swell) * (1.0 - smoothstep(4.0, 12.0, d));
+        col = mix(col, vec3(0.97), clamp(foam * 0.85 + breakLine * 0.35, 0.0, 1.0));
+        float alpha = mix(0.55, 0.95, smoothstep(0.0, 3.0, d));
+        gl_FragColor = vec4(col, alpha);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+        #include <fog_fragment>
+      }
+    `,
+  });
+}

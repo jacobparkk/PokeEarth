@@ -73,7 +73,7 @@ export const kantoLocations: readonly LocationDefinition[] = [
         { slot: "terrain", url: null, proceduralFallback: "procedural:coastal-ground", position: [0, 0, 0], rotationDeg: [0, 0, 0], scale: 1, castShadow: false, receiveShadow: true },
         { slot: "player-house", url: null, proceduralFallback: "procedural:gable-house", position: [-8, 0, -8], rotationDeg: [0, 0, 0], scale: 1, castShadow: true, receiveShadow: true },
         { slot: "rival-house", url: null, proceduralFallback: "procedural:gable-house", position: [8, 0, -8], rotationDeg: [0, 0, 0], scale: 1, castShadow: true, receiveShadow: true },
-        { slot: "oak-lab", url: null, proceduralFallback: "procedural:lab-building", position: [6, 0, 8], rotationDeg: [0, 180, 0], scale: 1, castShadow: true, receiveShadow: true },
+        { slot: "oak-lab", url: null, proceduralFallback: "procedural:lab-building", position: [8.5, 0, 8.5], rotationDeg: [0, 180, 0], scale: 1, castShadow: true, receiveShadow: true },
       ],
     },
   },

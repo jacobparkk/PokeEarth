@@ -18,8 +18,16 @@ export type LazyScene = LazyExoticComponent<ComponentType<SceneProps>>;
  * yet fall back to the schema-driven arrival screen in StreetViewGateway, so
  * the transition flow always works.
  */
+const TownScene = lazy(() => import("./towns/TownScene"));
+
 export const sceneRegistry: Partial<Record<SceneKey, LazyScene>> = {
   "national-park": lazy(() => import("./national-park/NationalParkScene")),
+  // One data-driven town engine; each key picks its layout from towns/layouts.ts.
+  "ecruteak-city": TownScene,
+  "new-bark-town": TownScene,
+  "pallet-town": TownScene,
+  "littleroot-town": TownScene,
+  "twinleaf-town": TownScene,
 };
 
 export function getSceneComponent(key: SceneKey): LazyScene | null {

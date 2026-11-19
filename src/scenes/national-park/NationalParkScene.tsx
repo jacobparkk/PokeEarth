@@ -18,9 +18,10 @@ import { useExplorerStore } from "@/store/useExplorerStore";
 import type { ModelSlot as ModelSlotConfig } from "@/types/world";
 import type { SceneProps } from "../registry";
 import { Fountain } from "./Fountain";
-import { Gatehouse } from "./Gatehouse";
-import { buildColliders, buildLawnGrass, buildTallGrass, buildTrees, PARK } from "./layout";
-import { Benches, DistantHills, Flowerbeds, Hedges, Lamps, ParkGround, ParkWall } from "./ParkProps";
+import { Flowerbeds } from "../shared/Flowerbeds";
+import { Gatehouse } from "../shared/Gatehouse";
+import { buildColliders, buildLawnGrass, buildTallGrass, buildTrees, FLOWERBEDS, PARK } from "./layout";
+import { Benches, DistantHills, Hedges, Lamps, ParkGround, ParkWall } from "./ParkProps";
 
 /**
  * Johto · National Park — the MVP first-person scene.
@@ -97,7 +98,7 @@ export default function NationalParkScene({ location, onExit }: SceneProps) {
           <ParkWall />
           <Hedges />
           <Lamps />
-          <Flowerbeds seed={scene.seed + 3} />
+          <Flowerbeds beds={FLOWERBEDS} seed={scene.seed + 3} />
           <TreeField trees={world.trees} canopyA="#4f7d2f" canopyB="#8a9a3a" trunk="#5a4030" wind={wind} />
           <GrassField blades={world.tallGrass} colorA="#5f8a2c" colorB="#a3b04a" wind={wind} />
           <GrassField blades={world.lawn} colorA="#6d8f38" colorB="#93a84a" wind={wind * 0.6} parting={false} />
