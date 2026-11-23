@@ -90,6 +90,12 @@ export interface TownLayout {
     torii?: readonly PropPlacement[];
     windmills?: readonly PropPlacement[];
     trucks?: readonly PropPlacement[];
+    /** Fallen, mossy logs (forests). */
+    logs?: readonly PropPlacement[];
+    /** Centres of small mushroom clusters. */
+    mushrooms?: readonly PropPlacement[];
+    /** Shafts of sunlight slanting through the canopy, aimed at the sun. */
+    sunbeams?: readonly PropPlacement[];
   };
   trees: {
     kind: "broadleaf" | "conifer" | "mixed";
@@ -101,6 +107,10 @@ export interface TownLayout {
     gaps: readonly Rect[];
     /** Extra shade trees scattered inside the town. */
     interior: number;
+    /** Minimum spacing between interior trees (default 6 m; forests go much denser). */
+    interiorSpacing?: number;
+    /** How far interior trees keep from walkway edges (default 2.4 m). */
+    pathClearance?: number;
     height: readonly [number, number];
   };
   lawnTufts: number;

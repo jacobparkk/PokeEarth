@@ -322,6 +322,65 @@ def lake(dur, name):
     return normalize(out, 0.6)
 
 
+def lava(dur, name):
+    """Thick bubbling: low glooping pops over a dense, rolling bed."""
+    rng = rng_for(name)
+    n = int(dur * SR)
+    out = np.zeros(n)
+    for _ in range(int(dur * 7)):
+        L = int(rng.uniform(0.08, 0.35) * SR)
+        t = np.arange(L) / SR
+        f0 = rng.uniform(60, 180)
+        pop = np.sin(2 * np.pi * f0 * t * (1 + 3 * t)) * np.exp(-t * rng.uniform(9, 20))
+        pop += bandpass(rng.standard_normal(L), 200, 1200) * np.exp(-t * 40) * 0.4
+        wrap_add(out, pop * rng.uniform(0.2, 0.8), int(rng.uniform(0, n)))
+    b = bed(n, rng, lambda m, r: lowpass(brown(m, r), 220)) * 0.5
+    hiss = bed(n, rng, lambda m, r: bandpass(pink(m, r), 1500, 5000)) * 0.06
+    return normalize(out + b + hiss, 0.7)
+
+
+def rumble(dur, name):
+    """Deep volcanic rumble with slow surges."""
+    rng = rng_for(name)
+    n = int(dur * SR)
+    m = n + FADE
+    t = np.arange(m) / SR
+    deep = lowpass(brown(m, rng), 90, order=4)
+    swell = 0.5 + 0.5 * np.sin(2 * np.pi * t / 11.0 + 1.0) * np.sin(2 * np.pi * t / 7.3)
+    out = loopify(deep * (0.5 + 0.8 * swell))
+    return normalize(out, 0.75)
+
+
+def high_wind(dur, name):
+    """Howling summit wind: gusty bed plus resonant, pitch-wandering whistles."""
+    rng = rng_for(name)
+    n = int((dur + 2) * SR)
+    t = np.arange(n) / SR
+    base = wind(dur, name + "-bed", gusty=True)
+    howl = np.zeros(n)
+    for f0, depth in ((420, 90), (610, 130), (880, 160)):
+        f = f0 + depth * np.sin(2 * np.pi * t / rng.uniform(5, 9) + rng.uniform(0, 6))
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        noise = bandpass(pink(n, rng), f0 * 0.8, f0 * 1.25, order=3)
+        howl += (np.sin(ph) * 0.25 + noise) * slow_env(n, rng, rates=(0.07, 0.15), depth=0.9, base=0.25)
+    howl = loopify(howl)
+    return normalize(base[: len(howl)] + howl[: len(base)] * 0.6, 0.7)
+
+
+def mystic_hum(dur, name):
+    """A slow, beating drone with faint shimmering overtones (resonating stone)."""
+    rng = rng_for(name)
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    # Frequencies chosen to complete whole cycles over the loop so it is seamless.
+    for f, a in ((55.0, 1.0), (55.5, 0.8), (110.25, 0.45), (164.75, 0.25), (440.0, 0.06), (659.5, 0.04)):
+        fc = round(f * dur) / dur
+        out += a * np.sin(2 * np.pi * fc * t)
+    lfo = 0.75 + 0.25 * np.sin(2 * np.pi * t * (round(dur / 8) / dur))
+    return normalize(out * lfo, 0.6)
+
+
 # --------------------------------------------------------------------------- catalogue
 
 AMBIENCE = {
@@ -339,4 +398,9 @@ AMBIENCE = {
     "summer-insects": lambda: cicadas(36, "summer-insects"),
     "temple-bell": lambda: temple_bell(36, "temple-bell"),
     "wind-chimes": lambda: wind_chimes(30, "wind-chimes"),
+    "forest-insects": lambda: 0.6 * cicadas(30, "forest-insects"),
+    "lava-bubbling": lambda: lava(30, "lava-bubbling"),
+    "volcanic-rumble": lambda: rumble(36, "volcanic-rumble"),
+    "high-wind": lambda: high_wind(32, "high-wind"),
+    "mystic-hum": lambda: mystic_hum(32, "mystic-hum"),
 }

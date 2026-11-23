@@ -11,6 +11,8 @@ interface SceneEnvironmentProps {
   env: EnvironmentConfig;
   /** Half-size of the area that needs shadows, in metres. */
   shadowExtent?: number;
+  /** Size of the sky dome; must enclose every distant backdrop object (keep below the camera's far plane). */
+  skyDistance?: number;
 }
 
 /**
@@ -18,7 +20,7 @@ interface SceneEnvironmentProps {
  * Exposure is applied to light intensities so it is independent of the
  * tone-mapping path used by the composer.
  */
-export function SceneEnvironment({ env, shadowExtent = 62 }: SceneEnvironmentProps) {
+export function SceneEnvironment({ env, shadowExtent = 62, skyDistance = 450 }: SceneEnvironmentProps) {
   const dir = useMemo(() => sunDirection(env.sun.elevationDeg, env.sun.azimuthDeg), [env.sun.elevationDeg, env.sun.azimuthDeg]);
   const sunPos = useMemo(() => [dir[0] * 120, dir[1] * 120, dir[2] * 120] as [number, number, number], [dir]);
   const exposure = env.postFx.exposure;
@@ -30,7 +32,7 @@ export function SceneEnvironment({ env, shadowExtent = 62 }: SceneEnvironmentPro
       <fog attach="fog" args={[env.fog.color, env.fog.near, env.fog.far]} />
 
       <Sky
-        distance={450}
+        distance={skyDistance}
         sunPosition={sunPos}
         turbidity={env.sky.turbidity}
         rayleigh={env.sky.rayleigh}

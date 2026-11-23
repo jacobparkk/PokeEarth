@@ -91,10 +91,11 @@ export function FirstPersonController({
     camera.lookAt(aerial.lookAt[0], aerial.lookAt[1], aerial.lookAt[2]);
     camera.fov = aerial.fov;
     camera.near = 0.1;
-    camera.far = 1000;
+    camera.far = Math.max(camera.far, 1000);
     camera.updateProjectionMatrix();
 
     const feetY = groundHeight ? groundHeight(ground.spawn[0], ground.spawn[2]) : ground.spawn[1];
+    s.pos.set(ground.spawn[0], feetY, ground.spawn[2]);
     s.startPos.copy(camera.position);
     s.startQuat.copy(camera.quaternion);
     s.endPos.set(ground.spawn[0], feetY + ground.eyeHeight, ground.spawn[2]);
@@ -264,7 +265,9 @@ export function FirstPersonController({
     resolveCollisions(s.pos, PLAYER_RADIUS, colliders);
     s.pos.x = MathUtils.clamp(s.pos.x, ground.bounds.min[0], ground.bounds.max[0]);
     s.pos.z = MathUtils.clamp(s.pos.z, ground.bounds.min[1], ground.bounds.max[1]);
-    s.pos.y = groundHeight ? groundHeight(s.pos.x, s.pos.z) : ground.spawn[1];
+    // Follow the terrain, easing over steps and slopes instead of snapping.
+    const targetY = groundHeight ? groundHeight(s.pos.x, s.pos.z) : ground.spawn[1];
+    s.pos.y += (targetY - s.pos.y) * (1 - Math.exp(-16 * dt));
 
     // Head bob scales with speed and settles smoothly when stopping.
     const planarSpeed = Math.hypot(s.vel.x, s.vel.z);

@@ -28,6 +28,10 @@ export const sceneRegistry: Partial<Record<SceneKey, LazyScene>> = {
   "pallet-town": TownScene,
   "littleroot-town": TownScene,
   "twinleaf-town": TownScene,
+  // Landmarks
+  "viridian-forest": TownScene,
+  "mt-chimney": lazy(() => import("./mt-chimney/MtChimneyScene")),
+  "spear-pillar": lazy(() => import("./spear-pillar/SpearPillarScene")),
 };
 
 export function getSceneComponent(key: SceneKey): LazyScene | null {

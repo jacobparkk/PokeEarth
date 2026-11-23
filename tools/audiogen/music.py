@@ -401,5 +401,8 @@ TRACKS = {
     "hoenn/region-map": Track("Hoenn map", 52, "major", 108, 4, [0, 4, 5, 3], [3, 4, 2, 5], "lead", "arp", "marimba", "light", seed=77),
     "hoenn/littleroot-town": Track("Littleroot Town", 46, "major", 94, 4, [0, 5, 1, 4], [3, 0, 1, 4], "flute", "arp", "marimba", "shaker", seed=88),
     "sinnoh/region-map": Track("Sinnoh map", 50, "minor", 98, 4, [0, 5, 2, 6], [3, 0, 5, 4], "lead", "arp", "pluck", "light", seed=99, lead_octave=2),
+    "kanto/viridian-forest": Track("Viridian Forest", 45, "minor", 112, 4, [0, 5, 3, 4], [5, 6, 0, 4], "lead", "arp", "pluck", "shaker", seed=121, lead_octave=2),
+    "hoenn/mt-chimney": Track("Mt. Chimney", 50, "minor", 124, 4, [0, 5, 6, 4], [3, 6, 0, 4], "lead", "march", "pluck", "march", seed=131),
+    "sinnoh/spear-pillar": Track("Spear Pillar", 49, "minor", 68, 4, [0, 5, 3, 4], [5, 3, 6, 4], "musicbox", "arp", "pluck", "none", seed=141, form="AABB"),
     "sinnoh/twinleaf-town": Track("Twinleaf Town", 51, "major", 80, 3, [0, 3, 5, 4], [3, 4, 0, 4], "musicbox", "waltz", "pluck", "none", seed=111),
 }

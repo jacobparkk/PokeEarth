@@ -1,9 +1,12 @@
 /** Simple 2D (XZ-plane) collision primitives for a walking player. */
 export type Collider =
   | { kind: "circle"; x: number; z: number; r: number }
-  | { kind: "box"; minX: number; maxX: number; minZ: number; maxZ: number };
+  | { kind: "box"; minX: number; maxX: number; minZ: number; maxZ: number }
+  /** Keeps the player *inside* a circle (summits, crater rims, clearings). */
+  | { kind: "boundary"; x: number; z: number; r: number };
 
 export const circle = (x: number, z: number, r: number): Collider => ({ kind: "circle", x, z, r });
+export const boundary = (x: number, z: number, r: number): Collider => ({ kind: "boundary", x, z, r });
 export const box = (minX: number, minZ: number, maxX: number, maxZ: number): Collider => ({ kind: "box", minX, maxX, minZ, maxZ });
 
 /**
@@ -13,7 +16,16 @@ export const box = (minX: number, minZ: number, maxX: number, maxZ: number): Col
 export function resolveCollisions(p: { x: number; z: number }, radius: number, colliders: readonly Collider[]) {
   for (let pass = 0; pass < 2; pass++) {
     for (const c of colliders) {
-      if (c.kind === "circle") {
+      if (c.kind === "boundary") {
+        const dx = p.x - c.x;
+        const dz = p.z - c.z;
+        const max = c.r - radius;
+        const d = Math.hypot(dx, dz);
+        if (d > max) {
+          p.x = c.x + (dx / d) * max;
+          p.z = c.z + (dz / d) * max;
+        }
+      } else if (c.kind === "circle") {
         const dx = p.x - c.x;
         const dz = p.z - c.z;
         const min = c.r + radius;

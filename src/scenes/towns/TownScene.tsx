@@ -22,7 +22,7 @@ import { Flowerbeds } from "../shared/Flowerbeds";
 import { ProceduralBuilding } from "./buildings";
 import { paintTownGround } from "./groundTexture";
 import { TOWN_LAYOUTS } from "./layouts";
-import { Fences, Mailboxes, MovingTrucks, Signposts, StoneLanterns, Torii, Windmills } from "./props";
+import { FallenLogs, Fences, Mailboxes, MovingTrucks, Mushrooms, Signposts, StoneLanterns, Sunbeams, Torii, Windmills } from "./props";
 import { resolveTown } from "./resolve";
 import type { Rect, TownLayout } from "./types";
 import { Lake, Sea } from "./Water";
@@ -53,8 +53,8 @@ function TownGround({ layout, foundations, seed }: { layout: TownLayout; foundat
 }
 
 /**
- * Generic, data-driven town scene used by Pallet, New Bark, Littleroot,
- * Twinleaf and Ecruteak. Buildings that are model slots in the location data
+ * Generic, data-driven scene used by every town (Pallet, New Bark, Littleroot,
+ * Twinleaf, Ecruteak) and by enclosed landmarks such as Viridian Forest. Buildings that are model slots in the location data
  * can be swapped for .glb files; everything else comes from TOWN_LAYOUTS.
  */
 export default function TownScene({ location, onExit }: SceneProps) {
@@ -113,6 +113,9 @@ export default function TownScene({ location, onExit }: SceneProps) {
           {p.torii && <Torii items={p.torii} />}
           {p.windmills && <Windmills items={p.windmills} wind={wind} />}
           {p.trucks && <MovingTrucks items={p.trucks} />}
+          {p.logs && <FallenLogs items={p.logs} />}
+          {p.mushrooms && <Mushrooms items={p.mushrooms} seed={scene.seed} />}
+          {p.sunbeams && <Sunbeams items={p.sunbeams} sunDir={sunDir} />}
           <Flowerbeds beds={layout.flowerBeds} seed={scene.seed + 3} perBed={120} />
 
           <TreeField trees={town.broadleaf} canopyA={layout.trees.canopy[0]} canopyB={layout.trees.canopy[1]} trunk={layout.trees.trunk} wind={wind} />

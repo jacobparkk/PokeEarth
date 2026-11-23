@@ -32,6 +32,8 @@ const PRESETS: Record<Exclude<ParticleEffect, "none">, Preset> = {
   "falling-leaves": { count: 420, color: "#e07a3c", size: 0.16, minY: 0, maxY: 14, fall: 0.7, drift: 0.9, twinkle: 0, additive: false },
   fireflies: { count: 260, color: "#d8ff8a", size: 0.1, minY: 0.3, maxY: 3.5, fall: 0, drift: 0.5, twinkle: 1, additive: true },
   "sea-spray": { count: 500, color: "#f2fbff", size: 0.06, minY: 0, maxY: 3, fall: -0.15, drift: 0.8, twinkle: 0.3, additive: true },
+  ash: { count: 1100, color: "#9c958d", size: 0.07, minY: -2, maxY: 18, fall: 0.35, drift: 0.7, twinkle: 0, additive: false },
+  snow: { count: 1800, color: "#f6f9ff", size: 0.09, minY: -2, maxY: 16, fall: 1.1, drift: 0.6, twinkle: 0, additive: false },
 };
 
 const vertexShader = /* glsl */ `

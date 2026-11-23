@@ -123,11 +123,13 @@ export function resolveTown(layout: TownLayout, location: ExplorableLocation): R
     trees.push({ x, z, height: height(), tint: rng(), seed: Math.floor(rng() * 1e9) });
   }
   const inner = t.belt.inner - 1.5;
+  const spacing = t.interiorSpacing ?? 6;
+  const clearance = t.pathClearance ?? 2.4;
   for (let i = 0, placed = 0; i < t.interior * 80 && placed < t.interior; i++) {
     const x = (rng() * 2 - 1) * inner;
     const z = (rng() * 2 - 1) * inner;
-    if (distanceToPaths(layout, x, z) < 2.4 || onBuilding(x, z, 2.5) || inWater(x, z, 1) || inTallGrass(x, z)) continue;
-    if (inBed(x, z, 1.5) || nearProp(x, z, 2.5) || nearFence(x, z, 1.2) || tooClose(x, z, 6)) continue;
+    if (distanceToPaths(layout, x, z) < clearance || onBuilding(x, z, 2.5) || inWater(x, z, 1) || inTallGrass(x, z)) continue;
+    if (inBed(x, z, 1.5) || nearProp(x, z, 2.5) || nearFence(x, z, 1.2) || tooClose(x, z, spacing)) continue;
     if (Math.hypot(x - spawn[0], z - spawn[2]) < 5) continue;
     trees.push({ x, z, height: height() * 0.85, tint: rng(), seed: Math.floor(rng() * 1e9) });
     placed++;
@@ -172,6 +174,10 @@ export function resolveTown(layout: TownLayout, location: ExplorableLocation): R
     ...(layout.props.windmills ?? []).map((p) => circle(p.x, p.z, 1.3)),
     ...(layout.props.trucks ?? []).map((p) => {
       const r = worldBoundsRect({ minX: -1.3, maxX: 1.3, minZ: -3.2, maxZ: 3.2 }, p.x, p.z, p.rot ?? 0);
+      return box(r.minX, r.minZ, r.maxX, r.maxZ);
+    }),
+    ...(layout.props.logs ?? []).map((p) => {
+      const r = worldBoundsRect({ minX: -0.55, maxX: 0.55, minZ: -3, maxZ: 3 }, p.x, p.z, p.rot ?? 0);
       return box(r.minX, r.minZ, r.maxX, r.maxZ);
     }),
     ...(layout.props.torii ?? []).flatMap((p) => {

@@ -35,7 +35,10 @@ export type SceneKey =
   | "new-bark-town"
   | "pallet-town"
   | "littleroot-town"
-  | "twinleaf-town";
+  | "twinleaf-town"
+  | "viridian-forest"
+  | "mt-chimney"
+  | "spear-pillar";
 
 export type LocationKind = "town" | "city" | "landmark" | "dungeon" | "water";
 
@@ -107,7 +110,7 @@ export interface CameraPresets {
 
 export type TimeOfDay = "dawn" | "morning" | "midday" | "golden-hour" | "dusk" | "night";
 export type WeatherType = "clear" | "partly-cloudy" | "overcast" | "rain" | "snow" | "mist";
-export type ParticleEffect = "none" | "pollen" | "falling-leaves" | "fireflies" | "sea-spray";
+export type ParticleEffect = "none" | "pollen" | "falling-leaves" | "fireflies" | "sea-spray" | "ash" | "snow";
 
 export interface EnvironmentConfig {
   timeOfDay: TimeOfDay;

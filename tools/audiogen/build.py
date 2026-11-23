@@ -16,9 +16,9 @@ os.makedirs(TMP, exist_ok=True)
 # region → ambience files its locations reference
 AMB_BY_REGION = {
     "johto": ["fountain", "grass-rustle", "birds-evening", "wind-soft", "temple-bell", "leaves-rustle", "wind-chimes", "crickets", "waves-gentle", "wind-gusts", "seagulls", "birds-morning"],
-    "kanto": ["birds-morning", "waves-gentle", "wind-soft"],
-    "hoenn": ["summer-insects", "birds-morning", "wind-soft"],
-    "sinnoh": ["birds-morning", "wind-soft", "lake-lapping"],
+    "kanto": ["birds-morning", "waves-gentle", "wind-soft", "leaves-rustle", "grass-rustle", "forest-insects"],
+    "hoenn": ["summer-insects", "birds-morning", "wind-soft", "lava-bubbling", "volcanic-rumble", "wind-gusts"],
+    "sinnoh": ["birds-morning", "wind-soft", "lake-lapping", "high-wind", "mystic-hum"],
 }
 
 
@@ -35,9 +35,15 @@ def to_wav(x, path):
     wavfile.write(path, SR, data.astype(np.int16))
 
 
+# Optional filter: `python build.py OUT name1 name2 ...` renders only matching keys.
+ONLY = set(sys.argv[2:])
+want = lambda key: not ONLY or key in ONLY
+
 rendered_amb = {}
 for region, names in AMB_BY_REGION.items():
     for name in names:
+        if not want(name):
+            continue
         if name not in rendered_amb:
             wav = f"{TMP}/amb-{name}.wav"
             to_wav(AMBIENCE[name](), wav)
@@ -46,6 +52,8 @@ for region, names in AMB_BY_REGION.items():
         encode(rendered_amb[name], f"{OUT}/{region}/ambience/{name}", stereo=False)
 
 for key, track in TRACKS.items():
+    if not want(key):
+        continue
     region, file = key.split("/")
     wav = f"{TMP}/music-{region}-{file}.wav"
     audio = render(track)

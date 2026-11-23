@@ -235,10 +235,58 @@ const ecruteak: TownLayout = {
   shadowExtent: 92,
 };
 
+/* Viridian Forest: a winding trail through dense woods between two gatehouses, with tall-grass clearings. */
+const viridianForest: TownLayout = {
+  groundHalf: 56,
+  palette: { grass: "#4f6e2e", grassDark: "#3a5524", grassLight: "#6b8a3a", dirt: "#9c845f", stone: "#a9a394", gravel: "#a38f6c", sand: "#cdbb90", leaves: "#6e5a32" },
+  paths: [
+    {
+      points: [[0, 47], [0, 30], [-20, 30], [-20, 12], [10, 12], [10, -6], [-16, -6], [-16, -24], [16, -24], [16, -38], [0, -38], [0, -47]],
+      width: 2.6,
+      surface: "dirt",
+    },
+    { points: [[10, 12], [30, 12], [30, 26]], width: 2.2, surface: "dirt" },
+    { points: [[-16, -6], [-34, -6], [-34, 4]], width: 2.2, surface: "dirt" },
+  ],
+  plazas: [],
+  tallGrass: [
+    [[-26, 24], [-14, 24], [-14, 36], [-26, 36]],
+    [[-4, 5], [16, 5], [16, 18], [-4, 18]],
+    [[-22, -30], [-10, -30], [-10, -12], [-22, -12]],
+    [[8, -44], [22, -44], [22, -30], [8, -30]],
+    [[24, 17], [36, 17], [36, 30], [24, 30]],
+    [[-40, -2], [-28, -2], [-28, 8], [-40, 8]],
+  ],
+  flowerBeds: [],
+  fences: [],
+  slotStyles: {},
+  extraBuildings: [],
+  props: {
+    signposts: [{ x: 3.2, z: 40 }, { x: -23.4, z: 27, rot: 90 }, { x: 3.2, z: -42 }],
+    logs: [{ x: -8, z: 24, rot: 20 }, { x: 22, z: 2, rot: -40 }, { x: -28, z: -16, rot: 75 }, { x: 6, z: -31, rot: 100 }, { x: 34, z: -10, rot: 10 }],
+    mushrooms: [{ x: -6, z: 20 }, { x: 14, z: -12 }, { x: -25, z: 5 }, { x: 25, z: -33 }, { x: -9, z: -34 }, { x: 6, z: 36 }],
+    sunbeams: [{ x: -20, z: 30 }, { x: 6, z: 11 }, { x: -16, z: -20 }, { x: 15, z: -36 }, { x: 30, z: 23 }, { x: -34, z: 2 }],
+  },
+  trees: {
+    kind: "broadleaf",
+    canopy: ["#2f5e2a", "#5f8f3a"],
+    trunk: "#4a3526",
+    belt: { inner: 46, outer: 70, spacing: 4.2 },
+    gaps: [{ minX: -8, maxX: 8, minZ: 44, maxZ: 80 }, { minX: -8, maxX: 8, minZ: -80, maxZ: -44 }],
+    interior: 520,
+    interiorSpacing: 3.8,
+    pathClearance: 2.6,
+    height: [9, 15],
+  },
+  lawnTufts: 18000,
+  shadowExtent: 62,
+};
+
 export const TOWN_LAYOUTS: Partial<Record<SceneKey, TownLayout>> = {
   "pallet-town": pallet,
   "new-bark-town": newBark,
   "littleroot-town": littleroot,
   "twinleaf-town": twinleaf,
   "ecruteak-city": ecruteak,
+  "viridian-forest": viridianForest,
 };

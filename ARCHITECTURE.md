@@ -55,8 +55,11 @@ pokeearth/
    │  ├─ collision.ts · sun.ts
    │  ├─ foliage/GrassField.tsx       instanced grass, GPU wind, blades part around the player
    │  ├─ foliage/TreeField.tsx        instanced lumpy-canopy trees with wind sway
-   │  ├─ particles/AmbientParticles.tsx  pollen / falling leaves / fireflies / sea spray
-   │  └─ materials/water.ts           ripple + fresnel + glint water, falling-sheet shader
+   │  ├─ particles/AmbientParticles.tsx  pollen / falling leaves / fireflies / sea spray / ash / snow
+   │  ├─ particles/SteamPlumes.tsx    rising fumarole / chimney plumes
+   │  ├─ terrain/Heightfield.tsx      vertex-coloured displaced terrain (pair with the controller's groundHeight)
+   │  ├─ materials/water.ts           ripple + fresnel + glint water, falling-sheet shader, sea with surging foam
+   │  └─ materials/effects.ts         flowing lava, drifting sea of clouds
    ├─ components/
    │  ├─ ExplorerShell.tsx            mounts Map OR Street, plus header/sidebar/curtain/soundtrack
    │  ├─ map/                         RegionMap, RegionTerrain, MapPin, PinPreviewCard, RegionSidebar, useMapCamera
@@ -73,7 +76,9 @@ pokeearth/
       │  ├─ layout.ts                 paths SDF, grass fields, benches, lamps, hedges, trees, colliders
       │  ├─ groundTexture.ts          2048² canvas-painted lawn / gravel / paving
       │  └─ Fountain.tsx · ParkProps.tsx
-      └─ towns/                       one data-driven engine for every town
+      ├─ mt-chimney/                  terrain.ts (crater heightfield, boulders, vents, colliders) + MtChimneyScene
+      ├─ spear-pillar/                layout.ts (summit, platform/steps/dais heights, ruins) + SpearPillarScene
+      └─ towns/                       one data-driven engine for every town (and Viridian Forest)
          ├─ TownScene.tsx             generic scene (Pallet, New Bark, Littleroot, Twinleaf, Ecruteak)
          ├─ layouts.ts                ★ per-town streets, water, greenery, props, tree belt
          ├─ types.ts · resolve.ts     layout schema; footprints, trees, grass, colliders (deterministic)
@@ -171,4 +176,6 @@ stick to move. WASD/arrows to walk, Shift to run. Esc frees the mouse; Esc again
 3. Map the key to `TownScene` in `scenes/registry.ts`.
 
 Building kinds come from each slot's `proceduralFallback` (`gable-house`, `machiya`, `lab-building`, `gatehouse`, `nine-tier-pagoda`, `ruined-pagoda`, `wooden-hall`).
-Landmarks that don't fit the town pattern (like National Park) get their own scene folder that reuses the same engine pieces.
+Landmarks that don't fit the town pattern (National Park, Mt. Chimney, Spear Pillar) get their own scene folder that reuses the same engine pieces.
+Scenes with terrain pass a height function to `FirstPersonController` (`groundHeight`); the camera eases over slopes and steps, and a
+`boundary` collider keeps the player on the walkable area.

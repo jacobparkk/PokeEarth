@@ -18,9 +18,11 @@ Requires Node 20+.
 
 - ✅ Regions: Kanto, Johto, Hoenn and Sinnoh — 82 pinned locations, 6 with full camera/lighting/audio presets.
 - ✅ Interactive region maps with pins, hover previews, pan/zoom/pinch/keyboard and the dive/return transition.
-- ✅ First-person engine with six walkable scenes: **National Park**, **Ecruteak City**, **New Bark Town**, **Pallet Town**, **Littleroot Town** and **Twinleaf Town**.
-- ✅ Original soundtrack: 10 procedurally composed music loops + 14 ambience loops (`tools/audiogen` regenerates them).
-- The other 76 pins are map-only for now; adding a town is mostly a new layout in `src/scenes/towns/layouts.ts`.
+- ✅ First-person engine with nine walkable scenes:
+  - Towns: **Pallet**, **New Bark**, **Ecruteak**, **Littleroot**, **Twinleaf**
+  - One landmark per region: **Viridian Forest** (Kanto), **National Park** (Johto), **Mt. Chimney** (Hoenn), **Spear Pillar** (Sinnoh)
+- ✅ Original soundtrack: 13 procedurally composed music loops + 19 ambience loops (`tools/audiogen` regenerates them).
+- The other 73 pins are map-only for now; adding a town is mostly a new layout in `src/scenes/towns/layouts.ts`.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the file tree, state machine and how to add regions, scenes, audio and models.
 

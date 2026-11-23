@@ -2,7 +2,20 @@
 
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { BoxGeometry, CylinderGeometry, Group, InstancedMesh, Object3D, type BufferGeometry } from "three";
+import {
+  AdditiveBlending,
+  BoxGeometry,
+  Color,
+  CylinderGeometry,
+  DoubleSide,
+  Group,
+  InstancedMesh,
+  Object3D,
+  Quaternion,
+  ShaderMaterial,
+  Vector3,
+  type BufferGeometry,
+} from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Vec2 } from "@/types/world";
 import { hipRoof } from "../shared/roofs";
@@ -286,6 +299,145 @@ export function MovingTrucks({ items }: { items: readonly PropPlacement[] }) {
           ))}
         </group>
       ))}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------ forest floor */
+
+/** Mossy fallen logs lying along local Z, with a broken stump at one end. */
+export function FallenLogs({ items }: { items: readonly PropPlacement[] }) {
+  const geo = useMemo(() => {
+    const log = new CylinderGeometry(0.42, 0.5, 6, 12);
+    log.rotateX(Math.PI / 2);
+    log.translate(0, 0.45, 0);
+    const moss = new CylinderGeometry(0.44, 0.52, 4.2, 12, 1, true, -0.9, 1.8);
+    moss.rotateX(Math.PI / 2);
+    moss.translate(0, 0.47, 0.4);
+    const stump = new CylinderGeometry(0.42, 0.6, 0.9, 10);
+    stump.translate(0, 0.45, 3.6);
+    return { wood: merge([log, stump]), moss };
+  }, []);
+  return (
+    <>
+      <Instanced geometry={geo.wood} items={items} color="#5a4231" roughness={0.95} />
+      <Instanced geometry={geo.moss} items={items} color="#5f8a34" roughness={1} />
+    </>
+  );
+}
+
+/** Small clusters of toadstools around each placement. */
+export function Mushrooms({ items, seed = 5 }: { items: readonly PropPlacement[]; seed?: number }) {
+  const stems = useRef<InstancedMesh>(null);
+  const caps = useRef<InstancedMesh>(null);
+  const shrooms = useMemo(() => {
+    let s = seed;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    return items.flatMap((c) =>
+      Array.from({ length: 5 + Math.floor(rnd() * 5) }, () => {
+        const a = rnd() * Math.PI * 2;
+        const r = rnd() * 1.1;
+        return { x: c.x + Math.cos(a) * r, z: c.z + Math.sin(a) * r, s: 0.6 + rnd() * 0.9 };
+      }),
+    );
+  }, [items, seed]);
+  const geo = useMemo(() => {
+    const stem = new CylinderGeometry(0.05, 0.07, 0.25, 8);
+    stem.translate(0, 0.125, 0);
+    const cap = new CylinderGeometry(0.02, 0.2, 0.12, 12);
+    cap.translate(0, 0.29, 0);
+    return { stem, cap };
+  }, []);
+  useLayoutEffect(() => {
+    const st = stems.current;
+    const cp = caps.current;
+    if (!st || !cp) return;
+    const d = new Object3D();
+    shrooms.forEach((m, i) => {
+      d.position.set(m.x, 0, m.z);
+      d.rotation.set(0, i, 0);
+      d.scale.setScalar(m.s);
+      d.updateMatrix();
+      st.setMatrixAt(i, d.matrix);
+      cp.setMatrixAt(i, d.matrix);
+    });
+    st.instanceMatrix.needsUpdate = true;
+    cp.instanceMatrix.needsUpdate = true;
+    st.computeBoundingSphere();
+    cp.computeBoundingSphere();
+  }, [shrooms]);
+  if (shrooms.length === 0) return null;
+  return (
+    <>
+      <instancedMesh ref={stems} args={[geo.stem, undefined, shrooms.length]}>
+        <meshStandardMaterial color="#efe6d2" roughness={0.8} />
+      </instancedMesh>
+      <instancedMesh ref={caps} args={[geo.cap, undefined, shrooms.length]} castShadow>
+        <meshStandardMaterial color="#c8382c" roughness={0.6} />
+      </instancedMesh>
+    </>
+  );
+}
+
+const beamVertex = /* glsl */ `
+  varying vec2 vUv;
+  varying vec3 vNormalV;
+  varying vec3 vViewDir;
+  void main() {
+    vUv = uv;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vNormalV = normalize(normalMatrix * normal);
+    vViewDir = normalize(-mv.xyz);
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+const beamFragment = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uTime;
+  uniform float uStrength;
+  varying vec2 vUv;
+  varying vec3 vNormalV;
+  varying vec3 vViewDir;
+  void main() {
+    float edge = pow(abs(dot(vNormalV, vViewDir)), 1.6);   // soft cylinder edges
+    float fade = smoothstep(0.0, 0.25, vUv.y) * (1.0 - smoothstep(0.65, 1.0, vUv.y));
+    float flicker = 0.85 + 0.15 * sin(uTime * 0.7 + vUv.x * 12.0);
+    gl_FragColor = vec4(uColor, edge * fade * flicker * uStrength);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }
+`;
+
+/** Volumetric-looking light shafts angled toward the sun (additive, no depth write). */
+export function Sunbeams({ items, sunDir, color = "#fff1c8", strength = 0.12 }: { items: readonly PropPlacement[]; sunDir: Vector3; color?: string; strength?: number }) {
+  const material = useMemo(
+    () =>
+      new ShaderMaterial({
+        vertexShader: beamVertex,
+        fragmentShader: beamFragment,
+        transparent: true,
+        depthWrite: false,
+        blending: AdditiveBlending,
+        side: DoubleSide,
+        uniforms: { uColor: { value: new Color(color) }, uTime: { value: 0 }, uStrength: { value: strength } },
+      }),
+    [color, strength],
+  );
+  const quat = useMemo(() => new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), sunDir.clone().normalize()), [sunDir]);
+  useFrame((_, dt) => {
+    material.uniforms.uTime!.value += dt;
+  });
+  const H = 24;
+  return (
+    <>
+      {items.map((p, i) => {
+        const centre = sunDir.clone().normalize().multiplyScalar(H / 2);
+        return (
+          <mesh key={i} position={[p.x + centre.x, centre.y, p.z + centre.z]} quaternion={quat} material={material} renderOrder={10}>
+            <cylinderGeometry args={[2.6, 1.6, H, 20, 1, true]} />
+          </mesh>
+        );
+      })}
     </>
   );
 }
